@@ -16,6 +16,7 @@ function getLedger(options: LedgerOptions = {}): Promise<GetLedger> {
   const request = {
     command: 'ledger',
     ledger_index: options.ledgerVersion || 'validated',
+    ledger_hash: options.ledgerHash,
     expand: options.includeAllData,
     transactions: options.includeTransactions,
     accounts: options.includeState
