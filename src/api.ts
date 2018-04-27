@@ -92,13 +92,16 @@ class CallAPI extends EventEmitter {
       this.connection = new RestrictedConnection(serverURL, options)
       this.connection.on('ledgerClosed', message => {
         this.emit('ledger', server.formatLedgerClose(message))
-      })
+      });
+      this.connection.on('transaction', message => {
+          this.emit('transactions', message);
+      });
       this.connection.on('error', (errorCode, errorMessage, data) => {
         this.emit('error', errorCode, errorMessage, data)
-      })
+      });
       this.connection.on('connected', () => {
         this.emit('connected')
-      })
+      });
       this.connection.on('disconnected', code => {
         this.emit('disconnected', code)
       })

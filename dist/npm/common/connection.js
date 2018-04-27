@@ -180,9 +180,21 @@ class Connection extends events_1.EventEmitter {
                 }
                 this.emit('error', 'websocket', error.message, error);
             });
-            this._isReady = true;
-            this.emit('connected');
-            return undefined;
+            const request2 = {
+                command: 'subscribe',
+                streams: ['transactions']
+            };
+            return this.request(request2).then((data) => {
+                this._ws.on('error', error => {
+                    if (process.browser && error && error.type === 'error') {
+                     return;
+                    }
+                    this.emit('error', 'websocket', error.message, error);
+                });
+                this._isReady = true;
+                this.emit('connected');
+                return undefined;
+            });
         });
     }
     _rebindOnUnxpectedClose() {

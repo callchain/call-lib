@@ -110,6 +110,9 @@ class CallAPI extends events_1.EventEmitter {
             this.connection.on('ledgerClosed', message => {
                 this.emit('ledger', server.formatLedgerClose(message));
             });
+            this.connection.on('transaction', message => {
+                this.emit('transactions', message);
+            });
             this.connection.on('error', (errorCode, errorMessage, data) => {
                 this.emit('error', errorCode, errorMessage, data);
             });
