@@ -6,7 +6,7 @@ const common_1 = require("../../common");
 const AccountFlags = common_1.constants.AccountFlags;
 const fields_1 = require("./fields");
 function getAccountRootModifiedNode(tx) {
-    const modifiedNodes = tx.meta.AffectedNodes.filter(node => node.ModifiedNode.LedgerEntryType === 'AccountRoot');
+    const modifiedNodes = tx.meta.AffectedNodes.filter(node => node.ModifiedNode && node.ModifiedNode.LedgerEntryType === 'AccountRoot');
     assert(modifiedNodes.length === 1);
     return modifiedNodes[0].ModifiedNode;
 }

@@ -7,7 +7,7 @@ var AccountFlags = common_1.constants.AccountFlags;
 var fields_1 = require("./fields");
 function getAccountRootModifiedNode(tx) {
     var modifiedNodes = tx.meta.AffectedNodes.filter(function (node) {
-        return node.ModifiedNode.LedgerEntryType === 'AccountRoot';
+        return node.ModifiedNode && node.ModifiedNode.LedgerEntryType === 'AccountRoot';
     });
     assert(modifiedNodes.length === 1);
     return modifiedNodes[0].ModifiedNode;
