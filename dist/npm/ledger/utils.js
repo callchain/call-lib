@@ -23,9 +23,13 @@ function getRecursiveRecur(getter, marker, limit) {
     return getter(marker, limit).then(data => {
         const remaining = limit - data.results.length;
         if (remaining > 0 && data.marker !== undefined) {
-            return getRecursiveRecur(getter, data.marker, remaining).then(results => data.results.concat(results));
+            return getRecursiveRecur(getter, data.marker, remaining).then(results => data.results.concat(results.results));
         }
-        return data.results.slice(0, limit);
+        const obj = {results: data.results};
+        if(data.marker){
+            obj.marker = data.marker;
+        }
+        return obj;
     });
 }
 // function getRecursive(getter: Getter, limit?: number): Promise<Array<any>> {

@@ -20,7 +20,7 @@ function getOrders(address, options = {}) {
     common_1.validate.getOrders({ address, options });
     return utils.ensureLedgerVersion.call(this, options).then(_options => {
         const getter = _.partial(requestAccountOffers, this.connection, address, _options.ledgerVersion);
-        return utils.getRecursive(getter, _options.limit).then(orders => _.sortBy(orders, order => order.properties.sequence));
+        return utils.getRecursive(getter, _options.limit).then(orders.results => _.sortBy(orders, order => order.properties.sequence));
     });
 }
 exports.default = getOrders;
