@@ -28,6 +28,7 @@ function getFee() {
 exports.getFee = getFee;
 function formatLedgerClose(ledgerClose) {
     return {
+        feePool: common.dropsToCall(ledgerClose.Fee),
         baseFeeCALL: common.dropsToCall(ledgerClose.fee_base),
         ledgerHash: ledgerClose.ledger_hash,
         ledgerVersion: ledgerClose.ledger_index,
