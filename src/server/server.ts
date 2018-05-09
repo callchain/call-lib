@@ -28,6 +28,7 @@ function getFee(): Promise<string> {
 
 function formatLedgerClose(ledgerClose: any): Object {
   return {
+    feePool: common.dropsToCall(ledgerClose.Fee),
     baseFeeCALL: common.dropsToCall(ledgerClose.fee_base),
     ledgerHash: ledgerClose.ledger_hash,
     ledgerVersion: ledgerClose.ledger_index,
