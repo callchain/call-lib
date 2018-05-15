@@ -36,9 +36,15 @@ function getRecursiveRecur(
   return getter(marker, limit).then(data => {
     const remaining = limit - data.results.length
     if (remaining > 0 && data.marker !== undefined) {
-      return getRecursiveRecur(getter, data.marker, remaining).then(results =>
-        data.results.concat(results.results)
-      )
+      return getRecursiveRecur(getter, data.marker, remaining).then((result) =>
+      {
+          data.results = data.results.concat(result.results);
+          if(result.marker)
+              data.marker = result.marker;
+          else
+              delete data.marker;
+          return data;
+      })
     }
       const obj = {results: data.results};
       if(data.marker){
