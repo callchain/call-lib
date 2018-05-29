@@ -21,7 +21,7 @@ function getTrustlineBalanceAmount(trustline: Trustline) {
 }
 
 function formatBalances(options, balances) {
-  const result = balances.trustlines.map(getTrustlineBalanceAmount)
+  const result = balances.trustlines.results.map(getTrustlineBalanceAmount)
   if (!(options.counterparty ||
        (options.currency && options.currency !== 'CALL')
   )) {
