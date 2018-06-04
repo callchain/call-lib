@@ -12,16 +12,34 @@ interface GetAccountLinesResponse {
   results: Trustline[]
 }
 
+function hexToStringWide(h) {//16进制转中英文
+    let a = [];
+    let i = 0;
+    if (h.length % 4) {
+        a.push(String.fromCharCode(parseInt(h.substring(0, 4), 16)));
+        i = 4;
+    }
+    for (; i<h.length; i+=4) {
+        a.push(String.fromCharCode(parseInt(h.substring(i, i+4), 16)));
+    }
+    return a.join('');
+}
+
 function currencyFilter(currency: string, trustline: Trustline) {
   return currency === null || trustline.specification.currency === currency
 }
 
 function formatResponse(options: TrustlinesOptions, data: any) {
-  return {
-    marker: data.marker,
-    results: data.lines.map(parseAccountTrustline)
-      .filter(_.partial(currencyFilter, options.currency || null))
-  }
+    const response = {results: data.lines.map(parseAccountTrustline)
+        .filter(_.partial(currencyFilter, options.currency || null))};
+
+    if(data.marker){
+        response.marker = data.marker;
+    }
+    if(data.NickName){
+        response.nickName = hexToStringWide(hexToStringWide(data.NickName));
+    }
+    return response;
 }
 
 function getAccountLines(connection: Connection, address: string,

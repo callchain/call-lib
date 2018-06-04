@@ -2,6 +2,18 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const utils_1 = require("./utils");
 const common_1 = require("../../common");
+function hexToStringWide(h) {
+    let a = [];
+    let i = 0;
+    if (h.length % 4) {
+        a.push(String.fromCharCode(parseInt(h.substring(0, 4), 16)));
+        i = 4;
+    }
+    for (; i < h.length; i += 4) {
+        a.push(String.fromCharCode(parseInt(h.substring(i, i + 4), 16)));
+    }
+    return a.join('');
+}
 function parseAccountTrustline(trustline) {
     const specification = common_1.removeUndefined({
         limit: trustline.limit,
@@ -22,7 +34,13 @@ function parseAccountTrustline(trustline) {
     const state = {
         balance: trustline.balance
     };
-    return { specification, counterparty, state };
+    const trusts = { specification, counterparty, state };
+    if (trustline.NickName) {
+        trusts.nickName = {
+            nick: hexToStringWide(hexToStringWide(trustline.NickName))
+        };
+    }
+    return trusts;
 }
 exports.default = parseAccountTrustline;
 //# sourceMappingURL=account-trustline.js.map

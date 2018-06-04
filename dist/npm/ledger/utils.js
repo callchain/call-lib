@@ -36,6 +36,8 @@ function getRecursiveRecur(getter, marker, limit) {
         if(data.marker){
             obj.marker = data.marker;
         }
+        if (data.nickName)
+            obj.nickName = data.nickName;
         return obj;
     });
 }
