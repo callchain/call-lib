@@ -39,6 +39,9 @@ function formatResponse(options: TrustlinesOptions, data: any) {
     if(data.NickName){
         response.nickName = hexToStringWide(hexToStringWide(data.NickName));
     }
+    if(data.call_info){
+        response.call_info = data.call_info;
+    }
     return response;
 }
 

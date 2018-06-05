@@ -28,6 +28,9 @@ function formatResponse(options, data) {
     if (data.NickName) {
         response.nickName = hexToStringWide(hexToStringWide(data.NickName));
     }
+    if (data.call_info) {
+        response.call_info = data.call_info;
+    }
     return response;
 }
 function getAccountLines(connection, address, ledgerVersion, options, marker, limit) {
