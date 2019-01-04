@@ -46,7 +46,7 @@
     "elliptic": "^5.1.0",
     "gulp-header": "^1.8.2",
     "hash.js": "^1.0.3",
-    "https-proxy-agent": "^1.0.0",
+    "https-proxy-agent": ">=2.2.0",
     "jsonschema": "^1.1.1",
     "lodash": "^4.17.5",
     "ws": "^3.3.1"
