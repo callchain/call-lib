@@ -15,7 +15,7 @@ Install `call-lib`:
 $ yarn add call-lib
 ```
 
-### Doc
+### Documents
 
 Please refer to [call lib wiki](https://github.com/callchain/call-lib/wiki).
 
