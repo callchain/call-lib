@@ -12,7 +12,7 @@ A JavaScript API for interacting with the CALL Ledger
 
 Install `call-lib`:
 ```
-$ yarn add call-lib
+$ npm install call-lib
 ```
 
 ### Documents
