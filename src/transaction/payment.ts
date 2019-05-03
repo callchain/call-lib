@@ -15,7 +15,8 @@ type Payment = {
   paths?: string,
   memos?: Array<Memo>,
   // A 256-bit hash that can be used to identify a particular payment
-  invoiceID?: string,
+  invoiceID?: string, // for non fungible
+  invoice: string,
   allowPartialPayment?: boolean,
   noDirectCall?: boolean,
   limitQuality?: boolean
@@ -79,6 +80,9 @@ function createPaymentTransaction(address: string, paymentArgument: Payment
 
   if (payment.invoiceID !== undefined) {
     txJSON.InvoiceID = payment.invoiceID
+  }
+  if (payment.invoice !== undefined) {
+    txJSON.Invoice = payment.invoice
   }
   if (payment.source.tag !== undefined) {
     txJSON.SourceTag = payment.source.tag

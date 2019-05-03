@@ -10,6 +10,7 @@ function hexToStringWide(h) {//16进制转中英文
     }
     return a.join('');
 }
+
 function getAccountIssues(address: string) {
     const request = {
         command: 'account_issues',

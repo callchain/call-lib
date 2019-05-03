@@ -18,9 +18,11 @@ import getOrders from './ledger/orders'
 import getOrderbook from './ledger/orderbook'
 import getSettings from './ledger/settings'
 import getAccountInfo from './ledger/accountinfo'
-import getAccountInfoByNick from './ledger/getAccountInfoByNick'
-import getAccountIssues from './ledger/getAccountIssues'
+import getAccountByName from './ledger/accountname'
+import getAccountIssues from './ledger/accountissues'
+import getAccountInvoices from './ledger/accountinvoices'
 import getPaymentChannel from './ledger/payment-channel'
+import prepareIssueSet from './transaction/issue-set'
 import preparePayment from './transaction/payment'
 import prepareTrustline from './transaction/trustline'
 import prepareOrder from './transaction/order'
@@ -129,11 +131,13 @@ class CallAPI extends EventEmitter {
   getOrderbook = getOrderbook
   getSettings = getSettings
   getAccountInfo = getAccountInfo
-  getAccountInfoByNick = getAccountInfoByNick
+  getAccountByName = getAccountByName
   getAccountIssues = getAccountIssues
+  getAccountInvoices = getAccountInvoices
   getPaymentChannel = getPaymentChannel
   getLedger = getLedger
 
+  prepareIssueSet = prepareIssueSet
   preparePayment = preparePayment
   prepareTrustline = prepareTrustline
   prepareOrder = prepareOrder

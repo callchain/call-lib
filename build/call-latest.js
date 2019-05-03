@@ -71,13 +71,13 @@ var call =
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const constants = __webpack_require__(90);
+var constants = __webpack_require__(90);
 exports.constants = constants;
-const errors = __webpack_require__(37);
+var errors = __webpack_require__(37);
 exports.errors = errors;
-const validate = __webpack_require__(93);
+var validate = __webpack_require__(93);
 exports.validate = validate;
-const serverInfo = __webpack_require__(234);
+var serverInfo = __webpack_require__(234);
 exports.serverInfo = serverInfo;
 var utils_1 = __webpack_require__(46);
 exports.dropsToCall = utils_1.dropsToCall;
@@ -5283,6 +5283,141 @@ module.exports = g;
 /* 8 */
 /***/ (function(module, exports, __webpack_require__) {
 
+"use strict";
+/* WEBPACK VAR INJECTION */(function(Buffer) {
+Object.defineProperty(exports, "__esModule", { value: true });
+var bignumber_js_1 = __webpack_require__(5);
+var common = __webpack_require__(0);
+exports.common = common;
+var txFlags = common.txFlags;
+function formatPrepareResponse(txJSON) {
+    var instructions = {
+        fee: common.dropsToCall(txJSON.Fee),
+        sequence: txJSON.Sequence,
+    };
+    return {
+        tx_json: JSON.stringify(txJSON),
+        instructions: instructions
+    };
+}
+function setCanonicalFlag(txJSON) {
+    txJSON.Flags |= txFlags.Universal.FullyCanonicalSig;
+    // JavaScript converts operands to 32-bit signed ints before doing bitwise
+    // operations. We need to convert it back to an unsigned int.
+    txJSON.Flags = txJSON.Flags >>> 0;
+}
+function scaleValue(value, multiplier, extra) {
+    if (extra === void 0) { extra = 0; }
+    return (new bignumber_js_1.default(value)).times(multiplier).plus(extra).toString();
+}
+function prepareTransaction(txJSON, api, instructions) {
+    common.validate.instructions(instructions);
+    var account = txJSON.Account;
+    setCanonicalFlag(txJSON);
+    // function prepareMaxLedgerVersion(): Promise<Object> {
+    //   if (instructions.maxLedgerVersion !== undefined) {
+    //     if (instructions.maxLedgerVersion !== null) {
+    //       txJSON.LastLedgerSequence = instructions.maxLedgerVersion
+    //     }
+    //     return Promise.resolve(txJSON)
+    //   }
+    //   const offset = instructions.maxLedgerVersionOffset !== undefined ?
+    //     instructions.maxLedgerVersionOffset : 3
+    //   return api.connection.getLedgerVersion().then(ledgerVersion => {
+    //     txJSON.LastLedgerSequence = ledgerVersion + offset
+    //     return txJSON
+    //   })
+    // }
+    function prepareFee() {
+        var multiplier = instructions.signersCount === undefined ? 1 :
+            instructions.signersCount + 1;
+        if (instructions.fee !== undefined) {
+            txJSON.Fee = scaleValue(common.callToDrops(instructions.fee), multiplier);
+            return Promise.resolve(txJSON);
+        }
+        var cushion = api._feeCushion;
+        return common.serverInfo.getFee(api.connection, cushion).then(function (fee) {
+            return api.connection.getFeeRef().then(function (feeRef) {
+                var extraFee = (txJSON.TransactionType !== 'EscrowFinish' ||
+                    txJSON.Fulfillment === undefined) ? 0 :
+                    (cushion * feeRef * (32 + Math.floor(new Buffer(txJSON.Fulfillment, 'hex').length / 16)));
+                var feeDrops = common.callToDrops(fee);
+                if (instructions.maxFee !== undefined) {
+                    var maxFeeDrops = common.callToDrops(instructions.maxFee);
+                    var normalFee = scaleValue(feeDrops, multiplier, extraFee);
+                    txJSON.Fee = bignumber_js_1.default.min(normalFee, maxFeeDrops).toString();
+                }
+                else {
+                    txJSON.Fee = scaleValue(feeDrops, multiplier, extraFee);
+                }
+                return txJSON;
+            });
+        });
+    }
+    function prepareSequence() {
+        if (instructions.sequence !== undefined) {
+            txJSON.Sequence = instructions.sequence;
+            return Promise.resolve(txJSON);
+        }
+        var request = {
+            command: 'account_info',
+            account: account
+        };
+        return api.connection.request(request).then(function (response) {
+            txJSON.Sequence = response.account_data.Sequence;
+            return txJSON;
+        });
+    }
+    function stringToHexWide(s) {
+        var result = '';
+        for (var i = 0; i < s.length; i++) {
+            var b = s.charCodeAt(i);
+            if (0 <= b && b < 16) {
+                result += '000' + b.toString(16);
+            }
+            if (16 <= b && b < 255) {
+                result += '00' + b.toString(16);
+            }
+            if (255 <= b && b < 4095) {
+                result += '0' + b.toString(16);
+            }
+            if (4095 <= b && b < 65535) {
+                result += b.toString(16);
+            }
+        }
+        return result;
+    }
+    if (txJSON.NickName) {
+        txJSON.NickName = stringToHexWide(stringToHexWide(txJSON.NickName));
+    }
+    return Promise.all([
+        // prepareMaxLedgerVersion(),
+        prepareFee(),
+        prepareSequence()
+    ]).then(function () { return formatPrepareResponse(txJSON); });
+}
+exports.prepareTransaction = prepareTransaction;
+function convertStringToHex(string) {
+    return new Buffer(string, 'utf8').toString('hex').toUpperCase();
+}
+exports.convertStringToHex = convertStringToHex;
+function convertMemo(memo) {
+    return {
+        Memo: common.removeUndefined({
+            MemoData: memo.data ? convertStringToHex(memo.data) : undefined,
+            MemoType: memo.type ? convertStringToHex(memo.type) : undefined,
+            MemoFormat: memo.format ? convertStringToHex(memo.format) : undefined
+        })
+    };
+}
+exports.convertMemo = convertMemo;
+
+/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(6).Buffer))
+
+/***/ }),
+/* 9 */
+/***/ (function(module, exports, __webpack_require__) {
+
 /* eslint-disable node/no-deprecated-api */
 var buffer = __webpack_require__(6)
 var Buffer = buffer.Buffer
@@ -5348,7 +5483,7 @@ SafeBuffer.allocUnsafeSlow = function (size) {
 
 
 /***/ }),
-/* 9 */
+/* 10 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -5467,140 +5602,6 @@ module.exports = {
 
 
 /***/ }),
-/* 10 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-/* WEBPACK VAR INJECTION */(function(Buffer) {
-Object.defineProperty(exports, "__esModule", { value: true });
-const bignumber_js_1 = __webpack_require__(5);
-const common = __webpack_require__(0);
-exports.common = common;
-const txFlags = common.txFlags;
-function formatPrepareResponse(txJSON) {
-    const instructions = {
-        fee: common.dropsToCall(txJSON.Fee),
-        sequence: txJSON.Sequence,
-    };
-    return {
-        tx_json: JSON.stringify(txJSON),
-        instructions
-    };
-}
-function setCanonicalFlag(txJSON) {
-    txJSON.Flags |= txFlags.Universal.FullyCanonicalSig;
-    // JavaScript converts operands to 32-bit signed ints before doing bitwise
-    // operations. We need to convert it back to an unsigned int.
-    txJSON.Flags = txJSON.Flags >>> 0;
-}
-function scaleValue(value, multiplier, extra = 0) {
-    return (new bignumber_js_1.default(value)).times(multiplier).plus(extra).toString();
-}
-function prepareTransaction(txJSON, api, instructions) {
-    common.validate.instructions(instructions);
-    const account = txJSON.Account;
-    setCanonicalFlag(txJSON);
-    // function prepareMaxLedgerVersion(): Promise<Object> {
-    //   if (instructions.maxLedgerVersion !== undefined) {
-    //     if (instructions.maxLedgerVersion !== null) {
-    //       txJSON.LastLedgerSequence = instructions.maxLedgerVersion
-    //     }
-    //     return Promise.resolve(txJSON)
-    //   }
-    //   const offset = instructions.maxLedgerVersionOffset !== undefined ?
-    //     instructions.maxLedgerVersionOffset : 3
-    //   return api.connection.getLedgerVersion().then(ledgerVersion => {
-    //     txJSON.LastLedgerSequence = ledgerVersion + offset
-    //     return txJSON
-    //   })
-    // }
-    function prepareFee() {
-        const multiplier = instructions.signersCount === undefined ? 1 :
-            instructions.signersCount + 1;
-        if (instructions.fee !== undefined) {
-            txJSON.Fee = scaleValue(common.callToDrops(instructions.fee), multiplier);
-            return Promise.resolve(txJSON);
-        }
-        const cushion = api._feeCushion;
-        return common.serverInfo.getFee(api.connection, cushion).then(fee => {
-            return api.connection.getFeeRef().then(feeRef => {
-                const extraFee = (txJSON.TransactionType !== 'EscrowFinish' ||
-                    txJSON.Fulfillment === undefined) ? 0 :
-                    (cushion * feeRef * (32 + Math.floor(new Buffer(txJSON.Fulfillment, 'hex').length / 16)));
-                const feeDrops = common.callToDrops(fee);
-                if (instructions.maxFee !== undefined) {
-                    const maxFeeDrops = common.callToDrops(instructions.maxFee);
-                    const normalFee = scaleValue(feeDrops, multiplier, extraFee);
-                    txJSON.Fee = bignumber_js_1.default.min(normalFee, maxFeeDrops).toString();
-                }
-                else {
-                    txJSON.Fee = scaleValue(feeDrops, multiplier, extraFee);
-                }
-                return txJSON;
-            });
-        });
-    }
-    function prepareSequence() {
-        if (instructions.sequence !== undefined) {
-            txJSON.Sequence = instructions.sequence;
-            return Promise.resolve(txJSON);
-        }
-        const request = {
-            command: 'account_info',
-            account: account
-        };
-        return api.connection.request(request).then(response => {
-            txJSON.Sequence = response.account_data.Sequence;
-            return txJSON;
-        });
-    }
-    function stringToHexWide(s) {
-        var result = '';
-        for (var i = 0; i < s.length; i++) {
-            var b = s.charCodeAt(i);
-            if (0 <= b && b < 16) {
-                result += '000' + b.toString(16);
-            }
-            if (16 <= b && b < 255) {
-                result += '00' + b.toString(16);
-            }
-            if (255 <= b && b < 4095) {
-                result += '0' + b.toString(16);
-            }
-            if (4095 <= b && b < 65535) {
-                result += b.toString(16);
-            }
-        }
-        return result;
-    }
-    if (txJSON.NickName) {
-        txJSON.NickName = stringToHexWide(stringToHexWide(txJSON.NickName));
-    }
-    return Promise.all([
-        // prepareMaxLedgerVersion(),
-        prepareFee(),
-        prepareSequence()
-    ]).then(() => formatPrepareResponse(txJSON));
-}
-exports.prepareTransaction = prepareTransaction;
-function convertStringToHex(string) {
-    return new Buffer(string, 'utf8').toString('hex').toUpperCase();
-}
-exports.convertStringToHex = convertStringToHex;
-function convertMemo(memo) {
-    return {
-        Memo: common.removeUndefined({
-            MemoData: memo.data ? convertStringToHex(memo.data) : undefined,
-            MemoType: memo.type ? convertStringToHex(memo.type) : undefined,
-            MemoFormat: memo.format ? convertStringToHex(memo.format) : undefined
-        })
-    };
-}
-exports.convertMemo = convertMemo;
-
-/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(6).Buffer))
-
-/***/ }),
 /* 11 */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -5628,17 +5629,17 @@ elliptic.eddsa = __webpack_require__(125);
 "use strict";
 /* WEBPACK VAR INJECTION */(function(Buffer) {
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = __webpack_require__(1);
-const transactionParser = __webpack_require__(262);
-const bignumber_js_1 = __webpack_require__(5);
-const common = __webpack_require__(0);
-const amount_1 = __webpack_require__(16);
+var _ = __webpack_require__(1);
+var transactionParser = __webpack_require__(262);
+var bignumber_js_1 = __webpack_require__(5);
+var common = __webpack_require__(0);
+var amount_1 = __webpack_require__(16);
 function adjustQualityForCALL(quality, takerGetsCurrency, takerPaysCurrency) {
     // quality = takerPays.value/takerGets.value
     // using drops (1e-6 CALL) for CALL values
-    const numeratorShift = (takerPaysCurrency === 'CALL' ? -6 : 0);
-    const denominatorShift = (takerGetsCurrency === 'CALL' ? -6 : 0);
-    const shift = numeratorShift - denominatorShift;
+    var numeratorShift = (takerPaysCurrency === 'CALL' ? -6 : 0);
+    var denominatorShift = (takerGetsCurrency === 'CALL' ? -6 : 0);
+    var shift = numeratorShift - denominatorShift;
     return shift === 0 ? quality :
         (new bignumber_js_1.default(quality)).shift(shift).toString();
 }
@@ -5663,13 +5664,13 @@ function removeEmptyCounterparty(amount) {
     }
 }
 function removeEmptyCounterpartyInBalanceChanges(balanceChanges) {
-    _.forEach(balanceChanges, changes => {
+    _.forEach(balanceChanges, function (changes) {
         _.forEach(changes, removeEmptyCounterparty);
     });
 }
 function removeEmptyCounterpartyInOrderbookChanges(orderbookChanges) {
-    _.forEach(orderbookChanges, changes => {
-        _.forEach(changes, change => {
+    _.forEach(orderbookChanges, function (changes) {
+        _.forEach(changes, function (change) {
             _.forEach(change, removeEmptyCounterparty);
         });
     });
@@ -5711,12 +5712,12 @@ function parseDeliveredAmount(tx) {
     return undefined;
 }
 function parseOutcome(tx) {
-    const metadata = tx.meta || tx.metaData;
+    var metadata = tx.meta || tx.metaData;
     if (!metadata) {
         return undefined;
     }
-    const balanceChanges = transactionParser.parseBalanceChanges(metadata);
-    const orderbookChanges = transactionParser.parseOrderbookChanges(metadata);
+    var balanceChanges = transactionParser.parseBalanceChanges(metadata);
+    var orderbookChanges = transactionParser.parseOrderbookChanges(metadata);
     removeEmptyCounterpartyInBalanceChanges(balanceChanges);
     removeEmptyCounterpartyInOrderbookChanges(orderbookChanges);
     return common.removeUndefined({
@@ -5739,7 +5740,7 @@ function parseMemos(tx) {
     if (!Array.isArray(tx.Memos) || tx.Memos.length === 0) {
         return undefined;
     }
-    return tx.Memos.map(m => {
+    return tx.Memos.map(function (m) {
         return common.removeUndefined({
             type: m.Memo.parsed_memo_type || hexToString(m.Memo.MemoType),
             format: m.Memo.parsed_memo_format || hexToString(m.Memo.MemoFormat),
@@ -8687,7 +8688,7 @@ exports.shr64_lo = shr64_lo;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const common = __webpack_require__(0);
+var common = __webpack_require__(0);
 function parseAmount(amount) {
     if (typeof amount === 'string') {
         return {
@@ -8711,9 +8712,9 @@ exports.default = parseAmount;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = __webpack_require__(1);
-const assert = __webpack_require__(2);
-const common = __webpack_require__(0);
+var _ = __webpack_require__(1);
+var assert = __webpack_require__(2);
+var common = __webpack_require__(0);
 exports.common = common;
 function clamp(value, min, max) {
     assert(min <= max, 'Illegal clamp bounds');
@@ -8721,20 +8722,22 @@ function clamp(value, min, max) {
 }
 exports.clamp = clamp;
 function getCALLBalance(connection, address, ledgerVersion) {
-    const request = {
+    var request = {
         command: 'account_info',
         account: address,
         ledger_index: ledgerVersion
     };
-    return connection.request(request).then(data => common.dropsToCall(data.account_data.Balance));
+    return connection.request(request).then(function (data) {
+        return common.dropsToCall(data.account_data.Balance);
+    });
 }
 exports.getCALLBalance = getCALLBalance;
 // If the marker is omitted from a response, you have reached the end
 function getRecursiveRecur(getter, marker, limit) {
-    return getter(marker, limit).then(data => {
-        const remaining = limit - data.results.length;
+    return getter(marker, limit).then(function (data) {
+        var remaining = limit - data.results.length;
         if (remaining > 0 && data.marker !== undefined) {
-            return getRecursiveRecur(getter, data.marker, remaining).then((result) => {
+            return getRecursiveRecur(getter, data.marker, remaining).then(function (result) {
                 data.results = data.results.concat(result.results);
                 if (result.marker)
                     data.marker = result.marker;
@@ -8743,7 +8746,7 @@ function getRecursiveRecur(getter, marker, limit) {
                 return data;
             });
         }
-        const obj = { results: data.results };
+        var obj = { results: data.results };
         if (data.marker) {
             obj.marker = data.marker;
         }
@@ -8762,18 +8765,18 @@ function getRecursive(getter, limit, marker) {
 }
 exports.getRecursive = getRecursive;
 function renameCounterpartyToIssuer(obj) {
-    const issuer = (obj.counterparty !== undefined) ?
+    var issuer = (obj.counterparty !== undefined) ?
         obj.counterparty :
         ((obj.issuer !== undefined) ? obj.issuer : undefined);
-    const withIssuer = Object.assign({}, obj, { issuer });
+    var withIssuer = Object.assign({}, obj, { issuer: issuer });
     delete withIssuer.counterparty;
     return withIssuer;
 }
 exports.renameCounterpartyToIssuer = renameCounterpartyToIssuer;
 function renameCounterpartyToIssuerInOrder(order) {
-    const taker_gets = renameCounterpartyToIssuer(order.taker_gets);
-    const taker_pays = renameCounterpartyToIssuer(order.taker_pays);
-    const changes = { taker_gets, taker_pays };
+    var taker_gets = renameCounterpartyToIssuer(order.taker_gets);
+    var taker_pays = renameCounterpartyToIssuer(order.taker_pays);
+    var changes = { taker_gets: taker_gets, taker_pays: taker_pays };
     return _.assign({}, order, _.omitBy(changes, _.isUndefined));
 }
 exports.renameCounterpartyToIssuerInOrder = renameCounterpartyToIssuerInOrder;
@@ -8791,12 +8794,14 @@ function compareTransactions(first, second) {
 }
 exports.compareTransactions = compareTransactions;
 function hasCompleteLedgerRange(connection, minLedgerVersion, maxLedgerVersion) {
-    const firstLedgerVersion = 32570; // earlier versions have been lost
+    var firstLedgerVersion = 32570; // earlier versions have been lost
     return connection.hasLedgerVersions(minLedgerVersion || firstLedgerVersion, maxLedgerVersion);
 }
 exports.hasCompleteLedgerRange = hasCompleteLedgerRange;
 function isPendingLedgerVersion(connection, maxLedgerVersion) {
-    return connection.getLedgerVersion().then(ledgerVersion => ledgerVersion < (maxLedgerVersion || 0));
+    return connection.getLedgerVersion().then(function (ledgerVersion) {
+        return ledgerVersion < (maxLedgerVersion || 0);
+    });
 }
 exports.isPendingLedgerVersion = isPendingLedgerVersion;
 function ensureLedgerVersion(options) {
@@ -8804,7 +8809,9 @@ function ensureLedgerVersion(options) {
         options.ledgerVersion !== null) {
         return Promise.resolve(options);
     }
-    return this.getLedgerVersion().then(ledgerVersion => _.assign({}, options, { ledgerVersion }));
+    return this.getLedgerVersion().then(function (ledgerVersion) {
+        return _.assign({}, options, { ledgerVersion: ledgerVersion });
+    });
 }
 exports.ensureLedgerVersion = ensureLedgerVersion;
 
@@ -9553,7 +9560,7 @@ Url.prototype.parseHost = function() {
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
-var _require = __webpack_require__(9);var bytesToHex = _require.bytesToHex;var slice = _require.slice;var _require2 = 
+var _require = __webpack_require__(10);var bytesToHex = _require.bytesToHex;var slice = _require.slice;var _require2 = 
 __webpack_require__(53);var BytesList = _require2.BytesList;
 
 var Comparable = { 
@@ -10679,7 +10686,7 @@ module.exports = {
 "use strict";
 var _slicedToArray = function () {function sliceIterator(arr, i) {var _arr = [];var _n = true;var _d = false;var _e = undefined;try {for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) {_arr.push(_s.value);if (i && _arr.length === i) break;}} catch (err) {_d = true;_e = err;} finally {try {if (!_n && _i["return"]) _i["return"]();} finally {if (_d) throw _e;}}return _arr;}return function (arr, i) {if (Array.isArray(arr)) {return arr;} else if (Symbol.iterator in Object(arr)) {return sliceIterator(arr, i);} else {throw new TypeError("Invalid attempt to destructure non-iterable instance");}};}();var assert = __webpack_require__(2);
 var _ = __webpack_require__(1);var _require = 
-__webpack_require__(9);var parseBytes = _require.parseBytes;var serializeUIntN = _require.serializeUIntN;
+__webpack_require__(10);var parseBytes = _require.parseBytes;var serializeUIntN = _require.serializeUIntN;
 var makeClass = __webpack_require__(4);
 var enums = __webpack_require__(281);
 
@@ -14241,7 +14248,7 @@ module.exports = Enums;
 /* 29 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var Buffer = __webpack_require__(8).Buffer
+var Buffer = __webpack_require__(9).Buffer
 
 // prototype class for hash functions
 function Hash (blockSize, finalSize) {
@@ -15205,7 +15212,7 @@ function objectToString(o) {
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
-var _require = __webpack_require__(9);var serializeUIntN = _require.serializeUIntN;
+var _require = __webpack_require__(10);var serializeUIntN = _require.serializeUIntN;
 
 function bytes(uint32) {
   return serializeUIntN(uint32, 4);}
@@ -15242,83 +15249,154 @@ module.exports = {
 
 "use strict";
 
+var __extends = (this && this.__extends) || (function () {
+    var extendStatics = Object.setPrototypeOf ||
+        ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
+        function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
+    return function (d, b) {
+        extendStatics(d, b);
+        function __() { this.constructor = d; }
+        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
-const util_1 = __webpack_require__(30);
-const browserHacks = __webpack_require__(92);
-class CallError extends Error {
-    constructor(message = '', data) {
-        super(message);
-        this.name = browserHacks.getConstructorName(this);
-        this.message = message;
-        this.data = data;
+var util_1 = __webpack_require__(30);
+var browserHacks = __webpack_require__(92);
+var CallError = /** @class */ (function (_super) {
+    __extends(CallError, _super);
+    function CallError(message, data) {
+        if (message === void 0) { message = ''; }
+        var _this = _super.call(this, message) || this;
+        _this.name = browserHacks.getConstructorName(_this);
+        _this.message = message;
+        _this.data = data;
         if (Error.captureStackTrace) {
-            Error.captureStackTrace(this, this.constructor);
+            Error.captureStackTrace(_this, _this.constructor);
         }
+        return _this;
     }
-    toString() {
-        let result = '[' + this.name + '(' + this.message;
+    CallError.prototype.toString = function () {
+        var result = '[' + this.name + '(' + this.message;
         if (this.data) {
             result += ', ' + util_1.inspect(this.data);
         }
         result += ')]';
         return result;
-    }
+    };
     /* console.log in node uses util.inspect on object, and util.inspect allows
     us to cutomize its output:
     https://nodejs.org/api/util.html#util_custom_inspect_function_on_objects */
-    inspect() {
+    CallError.prototype.inspect = function () {
         return this.toString();
-    }
-}
+    };
+    return CallError;
+}(Error));
 exports.CallError = CallError;
-class CalledError extends CallError {
-}
+var CalledError = /** @class */ (function (_super) {
+    __extends(CalledError, _super);
+    function CalledError() {
+        return _super !== null && _super.apply(this, arguments) || this;
+    }
+    return CalledError;
+}(CallError));
 exports.CalledError = CalledError;
-class UnexpectedError extends CallError {
-}
+var UnexpectedError = /** @class */ (function (_super) {
+    __extends(UnexpectedError, _super);
+    function UnexpectedError() {
+        return _super !== null && _super.apply(this, arguments) || this;
+    }
+    return UnexpectedError;
+}(CallError));
 exports.UnexpectedError = UnexpectedError;
-class LedgerVersionError extends CallError {
-}
+var LedgerVersionError = /** @class */ (function (_super) {
+    __extends(LedgerVersionError, _super);
+    function LedgerVersionError() {
+        return _super !== null && _super.apply(this, arguments) || this;
+    }
+    return LedgerVersionError;
+}(CallError));
 exports.LedgerVersionError = LedgerVersionError;
-class ConnectionError extends CallError {
-}
+var ConnectionError = /** @class */ (function (_super) {
+    __extends(ConnectionError, _super);
+    function ConnectionError() {
+        return _super !== null && _super.apply(this, arguments) || this;
+    }
+    return ConnectionError;
+}(CallError));
 exports.ConnectionError = ConnectionError;
-class NotConnectedError extends ConnectionError {
-}
+var NotConnectedError = /** @class */ (function (_super) {
+    __extends(NotConnectedError, _super);
+    function NotConnectedError() {
+        return _super !== null && _super.apply(this, arguments) || this;
+    }
+    return NotConnectedError;
+}(ConnectionError));
 exports.NotConnectedError = NotConnectedError;
-class DisconnectedError extends ConnectionError {
-}
+var DisconnectedError = /** @class */ (function (_super) {
+    __extends(DisconnectedError, _super);
+    function DisconnectedError() {
+        return _super !== null && _super.apply(this, arguments) || this;
+    }
+    return DisconnectedError;
+}(ConnectionError));
 exports.DisconnectedError = DisconnectedError;
-class CalledNotInitializedError extends ConnectionError {
-}
+var CalledNotInitializedError = /** @class */ (function (_super) {
+    __extends(CalledNotInitializedError, _super);
+    function CalledNotInitializedError() {
+        return _super !== null && _super.apply(this, arguments) || this;
+    }
+    return CalledNotInitializedError;
+}(ConnectionError));
 exports.CalledNotInitializedError = CalledNotInitializedError;
-class TimeoutError extends ConnectionError {
-}
+var TimeoutError = /** @class */ (function (_super) {
+    __extends(TimeoutError, _super);
+    function TimeoutError() {
+        return _super !== null && _super.apply(this, arguments) || this;
+    }
+    return TimeoutError;
+}(ConnectionError));
 exports.TimeoutError = TimeoutError;
-class ResponseFormatError extends ConnectionError {
-}
+var ResponseFormatError = /** @class */ (function (_super) {
+    __extends(ResponseFormatError, _super);
+    function ResponseFormatError() {
+        return _super !== null && _super.apply(this, arguments) || this;
+    }
+    return ResponseFormatError;
+}(ConnectionError));
 exports.ResponseFormatError = ResponseFormatError;
-class ValidationError extends CallError {
-}
+var ValidationError = /** @class */ (function (_super) {
+    __extends(ValidationError, _super);
+    function ValidationError() {
+        return _super !== null && _super.apply(this, arguments) || this;
+    }
+    return ValidationError;
+}(CallError));
 exports.ValidationError = ValidationError;
-class NotFoundError extends CallError {
-    constructor(message = 'Not found') {
-        super(message);
+var NotFoundError = /** @class */ (function (_super) {
+    __extends(NotFoundError, _super);
+    function NotFoundError(message) {
+        if (message === void 0) { message = 'Not found'; }
+        return _super.call(this, message) || this;
     }
-}
+    return NotFoundError;
+}(CallError));
 exports.NotFoundError = NotFoundError;
-class MissingLedgerHistoryError extends CallError {
-    constructor(message) {
-        super(message || 'Server is missing ledger history in the specified range');
+var MissingLedgerHistoryError = /** @class */ (function (_super) {
+    __extends(MissingLedgerHistoryError, _super);
+    function MissingLedgerHistoryError(message) {
+        return _super.call(this, message || 'Server is missing ledger history in the specified range') || this;
     }
-}
+    return MissingLedgerHistoryError;
+}(CallError));
 exports.MissingLedgerHistoryError = MissingLedgerHistoryError;
-class PendingLedgerVersionError extends CallError {
-    constructor(message) {
-        super(message || 'maxLedgerVersion is greater than server\'s most recent ' +
-            ' validated ledger');
+var PendingLedgerVersionError = /** @class */ (function (_super) {
+    __extends(PendingLedgerVersionError, _super);
+    function PendingLedgerVersionError(message) {
+        return _super.call(this, message || 'maxLedgerVersion is greater than server\'s most recent ' +
+            ' validated ledger') || this;
     }
-}
+    return PendingLedgerVersionError;
+}(CallError));
 exports.PendingLedgerVersionError = PendingLedgerVersionError;
 
 
@@ -15485,7 +15563,7 @@ var assert = __webpack_require__(2);
 var BN = __webpack_require__(28);
 var makeClass = __webpack_require__(4);var _require = 
 __webpack_require__(19);var Comparable = _require.Comparable;var SerializedType = _require.SerializedType;var _require2 = 
-__webpack_require__(9);var serializeUIntN = _require2.serializeUIntN;
+__webpack_require__(10);var serializeUIntN = _require2.serializeUIntN;
 var MAX_VALUES = [0, 255, 65535, 16777215, 4294967295];
 
 function signum(a, b) {
@@ -15550,7 +15628,7 @@ module.exports = {
 /* WEBPACK VAR INJECTION */(function(Buffer) {var makeClass = __webpack_require__(4);var _require = 
 __webpack_require__(36);var HashPrefix = _require.HashPrefix;var _require2 = 
 __webpack_require__(23);var Hash256 = _require2.Hash256;var _require3 = 
-__webpack_require__(9);var parseBytes = _require3.parseBytes;
+__webpack_require__(10);var parseBytes = _require3.parseBytes;
 var createHash = __webpack_require__(79);
 
 var Sha512Half = makeClass({ 
@@ -15890,9 +15968,9 @@ module.exports.scan = function scan(base, schema){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = __webpack_require__(1);
-const bignumber_js_1 = __webpack_require__(5);
-const { deriveKeypair } = __webpack_require__(25);
+var _ = __webpack_require__(1);
+var bignumber_js_1 = __webpack_require__(5);
+var deriveKeypair = __webpack_require__(25).deriveKeypair;
 function isValidSecret(secret) {
     try {
         deriveKeypair(secret);
@@ -15925,15 +16003,15 @@ function toCalledAmount(amount) {
 exports.toCalledAmount = toCalledAmount;
 function convertKeysFromSnakeCaseToCamelCase(obj) {
     if (typeof obj === 'object') {
-        let newKey;
-        return _.reduce(obj, (result, value, key) => {
-            newKey = key;
+        var newKey_1;
+        return _.reduce(obj, function (result, value, key) {
+            newKey_1 = key;
             // taking this out of function leads to error in PhantomJS
-            const FINDSNAKE = /([a-zA-Z]_[a-zA-Z])/g;
+            var FINDSNAKE = /([a-zA-Z]_[a-zA-Z])/g;
             if (FINDSNAKE.test(key)) {
-                newKey = key.replace(FINDSNAKE, r => r[0] + r[2].toUpperCase());
+                newKey_1 = key.replace(FINDSNAKE, function (r) { return r[0] + r[2].toUpperCase(); });
             }
-            result[newKey] = convertKeysFromSnakeCaseToCamelCase(value);
+            result[newKey_1] = convertKeysFromSnakeCaseToCamelCase(value);
             return result;
         }, {});
     }
@@ -16052,7 +16130,7 @@ var Stream = __webpack_require__(69);
 
 /*<replacement>*/
 
-var Buffer = __webpack_require__(8).Buffer;
+var Buffer = __webpack_require__(9).Buffer;
 var OurUint8Array = global.Uint8Array || function () {};
 function _uint8ArrayToBuffer(chunk) {
   return Buffer.from(chunk);
@@ -16689,7 +16767,7 @@ Writable.prototype._destroy = function (err, cb) {
 
 /*<replacement>*/
 
-var Buffer = __webpack_require__(8).Buffer;
+var Buffer = __webpack_require__(9).Buffer;
 /*</replacement>*/
 
 var isEncoding = Buffer.isEncoding || function (encoding) {
@@ -16968,25 +17046,25 @@ function simpleEnd(buf) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const assert = __webpack_require__(2);
-const utils_1 = __webpack_require__(12);
-const common_1 = __webpack_require__(0);
-const payment_1 = __webpack_require__(265);
-const trustline_1 = __webpack_require__(266);
-const issue_set_1 = __webpack_require__(267);
-const order_1 = __webpack_require__(268);
-const cancellation_1 = __webpack_require__(269);
-const settings_1 = __webpack_require__(270);
-const escrow_creation_1 = __webpack_require__(271);
-const escrow_execution_1 = __webpack_require__(272);
-const escrow_cancellation_1 = __webpack_require__(273);
-const payment_channel_create_1 = __webpack_require__(274);
-const payment_channel_fund_1 = __webpack_require__(275);
-const payment_channel_claim_1 = __webpack_require__(276);
-const fee_update_1 = __webpack_require__(277);
-const amendment_1 = __webpack_require__(278);
+var assert = __webpack_require__(2);
+var utils_1 = __webpack_require__(12);
+var common_1 = __webpack_require__(0);
+var payment_1 = __webpack_require__(265);
+var trustline_1 = __webpack_require__(266);
+var issue_set_1 = __webpack_require__(267);
+var order_1 = __webpack_require__(268);
+var cancellation_1 = __webpack_require__(269);
+var settings_1 = __webpack_require__(270);
+var escrow_creation_1 = __webpack_require__(271);
+var escrow_execution_1 = __webpack_require__(272);
+var escrow_cancellation_1 = __webpack_require__(273);
+var payment_channel_create_1 = __webpack_require__(274);
+var payment_channel_fund_1 = __webpack_require__(275);
+var payment_channel_claim_1 = __webpack_require__(276);
+var fee_update_1 = __webpack_require__(277);
+var amendment_1 = __webpack_require__(278);
 function parseTransactionType(type) {
-    const mapping = {
+    var mapping = {
         Payment: 'payment',
         TrustSet: 'trustline',
         OfferCreate: 'order',
@@ -17007,8 +17085,8 @@ function parseTransactionType(type) {
     return mapping[type] || null;
 }
 function parseTransaction(tx) {
-    const type = parseTransactionType(tx.TransactionType);
-    const mapping = {
+    var type = parseTransactionType(tx.TransactionType);
+    var mapping = {
         'payment': payment_1.default,
         'trustline': trustline_1.default,
         'order': order_1.default,
@@ -17024,10 +17102,10 @@ function parseTransaction(tx) {
         'amendment': amendment_1.default,
         'issueSet': issue_set_1.default,
     };
-    const parser = mapping[type];
+    var parser = mapping[type];
     assert(parser !== undefined, 'Unrecognized transaction type');
-    const specification = parser(tx);
-    const outcome = utils_1.parseOutcome(tx);
+    var specification = parser(tx);
+    var outcome = utils_1.parseOutcome(tx);
     return common_1.removeUndefined({
         type: type,
         address: tx.Account,
@@ -17112,7 +17190,7 @@ module.exports = {
 var assert = __webpack_require__(2);
 var makeClass = __webpack_require__(4);var _require = 
 __webpack_require__(19);var Comparable = _require.Comparable;var SerializedType = _require.SerializedType;var _require2 = 
-__webpack_require__(9);var compareBytes = _require2.compareBytes;var parseBytes = _require2.parseBytes;
+__webpack_require__(10);var compareBytes = _require2.compareBytes;var parseBytes = _require2.parseBytes;
 
 var Hash = makeClass({ 
   Hash: function Hash(bytes) {
@@ -17161,7 +17239,7 @@ module.exports = {
 
 "use strict";
 var assert = __webpack_require__(2);var _require = 
-__webpack_require__(9);var parseBytes = _require.parseBytes;var bytesToHex = _require.bytesToHex;
+__webpack_require__(10);var parseBytes = _require.parseBytes;var bytesToHex = _require.bytesToHex;
 var makeClass = __webpack_require__(4);var _require2 = 
 __webpack_require__(27);var Type = _require2.Type;var Field = _require2.Field;
 
@@ -17274,7 +17352,7 @@ module.exports = {
 "use strict";
 var _ = __webpack_require__(1);
 var makeClass = __webpack_require__(4);var _require = 
-__webpack_require__(9);var slice = _require.slice;var _require2 = 
+__webpack_require__(10);var slice = _require.slice;var _require2 = 
 __webpack_require__(51);var Hash160 = _require2.Hash160;
 var ISO_REGEX = /^[A-Z0-9]{3}$/;
 var HEX_REGEX = /^[A-F0-9]{40}$/;
@@ -17377,7 +17455,7 @@ var types = __webpack_require__(23);var _require =
 __webpack_require__(36);var HashPrefix = _require.HashPrefix;var _require2 =
 __webpack_require__(292);var BinaryParser = _require2.BinaryParser;var _require3 =
 __webpack_require__(53);var BinarySerializer = _require3.BinarySerializer;var BytesList = _require3.BytesList;var _require4 =
-__webpack_require__(9);var bytesToHex = _require4.bytesToHex;var slice = _require4.slice;var parseBytes = _require4.parseBytes;var _require5 =
+__webpack_require__(10);var bytesToHex = _require4.bytesToHex;var slice = _require4.slice;var parseBytes = _require4.parseBytes;var _require5 =
 
 __webpack_require__(42);var sha512Half = _require5.sha512Half;var transactionID = _require5.transactionID;
 
@@ -17453,144 +17531,167 @@ module.exports = {
 
 "use strict";
 
+var __extends = (this && this.__extends) || (function () {
+    var extendStatics = Object.setPrototypeOf ||
+        ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
+        function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
+    return function (d, b) {
+        extendStatics(d, b);
+        function __() { this.constructor = d; }
+        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = __webpack_require__(1);
-const events_1 = __webpack_require__(20);
-const common_1 = __webpack_require__(0);
-const server = __webpack_require__(261);
-const connect = server.connect;
-const disconnect = server.disconnect;
-const getServerInfo = server.getServerInfo;
-const getFee = server.getFee;
-const isConnected = server.isConnected;
-const getLedgerVersion = server.getLedgerVersion;
-const transaction_1 = __webpack_require__(72);
-const transactions_1 = __webpack_require__(279);
-const trustlines_1 = __webpack_require__(309);
-const balances_1 = __webpack_require__(311);
-const balance_sheet_1 = __webpack_require__(312);
-const pathfind_1 = __webpack_require__(313);
-const orders_1 = __webpack_require__(315);
-const orderbook_1 = __webpack_require__(317);
-const settings_1 = __webpack_require__(319);
-const accountinfo_1 = __webpack_require__(320);
-const getAccountInfoByNick_1 = __webpack_require__(321);
-const getAccountIssues_1 = __webpack_require__(322);
-const payment_channel_1 = __webpack_require__(323);
-const payment_1 = __webpack_require__(325);
-const trustline_1 = __webpack_require__(326);
-const order_1 = __webpack_require__(327);
-const ordercancellation_1 = __webpack_require__(328);
-const escrow_creation_1 = __webpack_require__(329);
-const escrow_execution_1 = __webpack_require__(330);
-const escrow_cancellation_1 = __webpack_require__(331);
-const payment_channel_create_1 = __webpack_require__(332);
-const payment_channel_fund_1 = __webpack_require__(333);
-const payment_channel_claim_1 = __webpack_require__(334);
-const settings_2 = __webpack_require__(335);
-const sign_1 = __webpack_require__(336);
-const combine_1 = __webpack_require__(337);
-const submit_1 = __webpack_require__(338);
-const generate_address_1 = __webpack_require__(339);
-const address_fromSecret_1 = __webpack_require__(340);
-const ledgerhash_1 = __webpack_require__(341);
-const sign_payment_channel_claim_1 = __webpack_require__(342);
-const verify_payment_channel_claim_1 = __webpack_require__(343);
-const ledger_1 = __webpack_require__(344);
-const rangeset_1 = __webpack_require__(65);
-const ledgerUtils = __webpack_require__(17);
-const schemaValidator = __webpack_require__(58);
+var _ = __webpack_require__(1);
+var events_1 = __webpack_require__(20);
+var common_1 = __webpack_require__(0);
+var server = __webpack_require__(261);
+var connect = server.connect;
+var disconnect = server.disconnect;
+var getServerInfo = server.getServerInfo;
+var getFee = server.getFee;
+var isConnected = server.isConnected;
+var getLedgerVersion = server.getLedgerVersion;
+var transaction_1 = __webpack_require__(72);
+var transactions_1 = __webpack_require__(279);
+var trustlines_1 = __webpack_require__(309);
+var balances_1 = __webpack_require__(311);
+var balance_sheet_1 = __webpack_require__(312);
+var pathfind_1 = __webpack_require__(313);
+var orders_1 = __webpack_require__(315);
+var orderbook_1 = __webpack_require__(317);
+var settings_1 = __webpack_require__(319);
+var accountinfo_1 = __webpack_require__(320);
+var accountname_1 = __webpack_require__(321);
+var accountissues_1 = __webpack_require__(322);
+var accountinvoices_1 = __webpack_require__(323);
+var payment_channel_1 = __webpack_require__(324);
+var issue_set_1 = __webpack_require__(326);
+var payment_1 = __webpack_require__(327);
+var trustline_1 = __webpack_require__(328);
+var order_1 = __webpack_require__(329);
+var ordercancellation_1 = __webpack_require__(330);
+var escrow_creation_1 = __webpack_require__(331);
+var escrow_execution_1 = __webpack_require__(332);
+var escrow_cancellation_1 = __webpack_require__(333);
+var payment_channel_create_1 = __webpack_require__(334);
+var payment_channel_fund_1 = __webpack_require__(335);
+var payment_channel_claim_1 = __webpack_require__(336);
+var settings_2 = __webpack_require__(337);
+var sign_1 = __webpack_require__(338);
+var combine_1 = __webpack_require__(339);
+var submit_1 = __webpack_require__(340);
+var generate_address_1 = __webpack_require__(341);
+var address_fromSecret_1 = __webpack_require__(342);
+var ledgerhash_1 = __webpack_require__(343);
+var sign_payment_channel_claim_1 = __webpack_require__(344);
+var verify_payment_channel_claim_1 = __webpack_require__(345);
+var ledger_1 = __webpack_require__(346);
+var rangeset_1 = __webpack_require__(65);
+var ledgerUtils = __webpack_require__(17);
+var schemaValidator = __webpack_require__(58);
 // prevent access to non-validated ledger versions
-class RestrictedConnection extends common_1.Connection {
-    request(request, timeout) {
-        const ledger_index = request.ledger_index;
+var RestrictedConnection = /** @class */ (function (_super) {
+    __extends(RestrictedConnection, _super);
+    function RestrictedConnection() {
+        return _super !== null && _super.apply(this, arguments) || this;
+    }
+    RestrictedConnection.prototype.request = function (request, timeout) {
+        var ledger_index = request.ledger_index;
         if (ledger_index !== undefined && ledger_index !== 'validated') {
             if (!_.isNumber(ledger_index) || ledger_index > this._ledgerVersion) {
-                return Promise.reject(new common_1.errors.LedgerVersionError(`ledgerVersion ${ledger_index} is greater than server\'s ` +
-                    `most recent validated ledger: ${this._ledgerVersion}`));
+                return Promise.reject(new common_1.errors.LedgerVersionError("ledgerVersion " + ledger_index + " is greater than server's " +
+                    ("most recent validated ledger: " + this._ledgerVersion)));
             }
         }
-        return super.request(request, timeout);
-    }
-}
-class CallAPI extends events_1.EventEmitter {
-    constructor(options = {}) {
-        super();
-        this.connect = connect;
-        this.disconnect = disconnect;
-        this.isConnected = isConnected;
-        this.getServerInfo = getServerInfo;
-        this.getFee = getFee;
-        this.getLedgerVersion = getLedgerVersion;
-        this.getTransaction = transaction_1.default;
-        this.getTransactions = transactions_1.default;
-        this.getTrustlines = trustlines_1.default;
-        this.getBalances = balances_1.default;
-        this.getBalanceSheet = balance_sheet_1.default;
-        this.getPaths = pathfind_1.default;
-        this.getOrders = orders_1.default;
-        this.getOrderbook = orderbook_1.default;
-        this.getSettings = settings_1.default;
-        this.getAccountInfo = accountinfo_1.default;
-        this.getAccountInfoByNick = getAccountInfoByNick_1.default;
-        this.getAccountIssues = getAccountIssues_1.default;
-        this.getPaymentChannel = payment_channel_1.default;
-        this.getLedger = ledger_1.default;
-        this.preparePayment = payment_1.default;
-        this.prepareTrustline = trustline_1.default;
-        this.prepareOrder = order_1.default;
-        this.prepareOrderCancellation = ordercancellation_1.default;
-        this.prepareEscrowCreation = escrow_creation_1.default;
-        this.prepareEscrowExecution = escrow_execution_1.default;
-        this.prepareEscrowCancellation = escrow_cancellation_1.default;
-        this.preparePaymentChannelCreate = payment_channel_create_1.default;
-        this.preparePaymentChannelFund = payment_channel_fund_1.default;
-        this.preparePaymentChannelClaim = payment_channel_claim_1.default;
-        this.prepareSettings = settings_2.default;
-        this.sign = sign_1.default;
-        this.combine = combine_1.default;
-        this.submit = submit_1.default;
-        this.generateAddress = generate_address_1.generateAddressAPI;
-        this.fromSecret = address_fromSecret_1.fromSecret;
-        this.computeLedgerHash = ledgerhash_1.default;
-        this.signPaymentChannelClaim = sign_payment_channel_claim_1.default;
-        this.verifyPaymentChannelClaim = verify_payment_channel_claim_1.default;
-        this.errors = common_1.errors;
+        return _super.prototype.request.call(this, request, timeout);
+    };
+    return RestrictedConnection;
+}(common_1.Connection));
+var CallAPI = /** @class */ (function (_super) {
+    __extends(CallAPI, _super);
+    function CallAPI(options) {
+        if (options === void 0) { options = {}; }
+        var _this = _super.call(this) || this;
+        _this.connect = connect;
+        _this.disconnect = disconnect;
+        _this.isConnected = isConnected;
+        _this.getServerInfo = getServerInfo;
+        _this.getFee = getFee;
+        _this.getLedgerVersion = getLedgerVersion;
+        _this.getTransaction = transaction_1.default;
+        _this.getTransactions = transactions_1.default;
+        _this.getTrustlines = trustlines_1.default;
+        _this.getBalances = balances_1.default;
+        _this.getBalanceSheet = balance_sheet_1.default;
+        _this.getPaths = pathfind_1.default;
+        _this.getOrders = orders_1.default;
+        _this.getOrderbook = orderbook_1.default;
+        _this.getSettings = settings_1.default;
+        _this.getAccountInfo = accountinfo_1.default;
+        _this.getAccountByName = accountname_1.default;
+        _this.getAccountIssues = accountissues_1.default;
+        _this.getAccountInvoices = accountinvoices_1.default;
+        _this.getPaymentChannel = payment_channel_1.default;
+        _this.getLedger = ledger_1.default;
+        _this.prepareIssueSet = issue_set_1.default;
+        _this.preparePayment = payment_1.default;
+        _this.prepareTrustline = trustline_1.default;
+        _this.prepareOrder = order_1.default;
+        _this.prepareOrderCancellation = ordercancellation_1.default;
+        _this.prepareEscrowCreation = escrow_creation_1.default;
+        _this.prepareEscrowExecution = escrow_execution_1.default;
+        _this.prepareEscrowCancellation = escrow_cancellation_1.default;
+        _this.preparePaymentChannelCreate = payment_channel_create_1.default;
+        _this.preparePaymentChannelFund = payment_channel_fund_1.default;
+        _this.preparePaymentChannelClaim = payment_channel_claim_1.default;
+        _this.prepareSettings = settings_2.default;
+        _this.sign = sign_1.default;
+        _this.combine = combine_1.default;
+        _this.submit = submit_1.default;
+        _this.generateAddress = generate_address_1.generateAddressAPI;
+        _this.fromSecret = address_fromSecret_1.fromSecret;
+        _this.computeLedgerHash = ledgerhash_1.default;
+        _this.signPaymentChannelClaim = sign_payment_channel_claim_1.default;
+        _this.verifyPaymentChannelClaim = verify_payment_channel_claim_1.default;
+        _this.errors = common_1.errors;
         common_1.validate.apiOptions(options);
-        this._feeCushion = options.feeCushion || 1.2;
-        const serverURL = options.server;
+        _this._feeCushion = options.feeCushion || 1.2;
+        var serverURL = options.server;
         if (serverURL !== undefined) {
-            this.connection = new RestrictedConnection(serverURL, options);
-            this.connection.on('ledgerClosed', message => {
-                this.emit('ledger', server.formatLedgerClose(message));
+            _this.connection = new RestrictedConnection(serverURL, options);
+            _this.connection.on('ledgerClosed', function (message) {
+                _this.emit('ledger', server.formatLedgerClose(message));
             });
-            this.connection.on('transaction', message => {
-                this.emit('transactions', message);
+            _this.connection.on('transaction', function (message) {
+                _this.emit('transactions', message);
             });
-            this.connection.on('error', (errorCode, errorMessage, data) => {
-                this.emit('error', errorCode, errorMessage, data);
+            _this.connection.on('error', function (errorCode, errorMessage, data) {
+                _this.emit('error', errorCode, errorMessage, data);
             });
-            this.connection.on('connected', () => {
-                this.emit('connected');
+            _this.connection.on('connected', function () {
+                _this.emit('connected');
             });
-            this.connection.on('disconnected', code => {
-                this.emit('disconnected', code);
+            _this.connection.on('disconnected', function (code) {
+                _this.emit('disconnected', code);
             });
         }
         else {
             // use null object pattern to provide better error message if user
             // tries to call a method that requires a connection
-            this.connection = new RestrictedConnection(null, options);
+            _this.connection = new RestrictedConnection(null, options);
         }
+        return _this;
     }
-}
-// these are exposed only for use by unit tests; they are not part of the API.
-CallAPI._PRIVATE = {
-    validate: common_1.validate,
-    RangeSet: rangeset_1.default,
-    ledgerUtils,
-    schemaValidator
-};
+    // these are exposed only for use by unit tests; they are not part of the API.
+    CallAPI._PRIVATE = {
+        validate: common_1.validate,
+        RangeSet: rangeset_1.default,
+        ledgerUtils: ledgerUtils,
+        schemaValidator: schemaValidator
+    };
+    return CallAPI;
+}(events_1.EventEmitter));
 exports.CallAPI = CallAPI;
 
 
@@ -17601,7 +17702,7 @@ exports.CallAPI = CallAPI;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const txFlags = {
+var txFlags = {
     // Universal flags can apply to any transaction type
     Universal: {
         FullyCanonicalSig: 0x80000000
@@ -17636,13 +17737,17 @@ const txFlags = {
     PaymentChannelClaim: {
         Renew: 0x00010000,
         Close: 0x00020000
+    },
+    IssueSet: {
+        Additional: 0x00010000,
+        NonFungible: 0x00001000
     }
 };
 exports.txFlags = txFlags;
 // The following are integer (as opposed to bit) flags
 // that can be set for particular transactions in the
 // SetFlag or ClearFlag field
-const txFlagIndices = {
+var txFlagIndices = {
     AccountSet: {
         asfRequireDest: 1,
         asfRequireAuth: 2,
@@ -17664,16 +17769,16 @@ exports.txFlagIndices = txFlagIndices;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = __webpack_require__(1);
-const assert = __webpack_require__(2);
-const { Validator } = __webpack_require__(94);
-const errors_1 = __webpack_require__(37);
-const call_address_codec_1 = __webpack_require__(31);
-const utils_1 = __webpack_require__(46);
+var _ = __webpack_require__(1);
+var assert = __webpack_require__(2);
+var Validator = __webpack_require__(94).Validator;
+var errors_1 = __webpack_require__(37);
+var call_address_codec_1 = __webpack_require__(31);
+var utils_1 = __webpack_require__(46);
 exports.isValidSecret = utils_1.isValidSecret;
 function loadSchemas() {
     // listed explicitly for webpack (instead of scanning schemas directory)
-    const schemas = [
+    var schemas = [
         __webpack_require__(135),
         __webpack_require__(136),
         __webpack_require__(137),
@@ -17774,10 +17879,10 @@ function loadSchemas() {
         __webpack_require__(232),
         __webpack_require__(233)
     ];
-    const titles = schemas.map(schema => schema.title);
-    const duplicates = _.keys(_.pickBy(_.countBy(titles), count => count > 1));
+    var titles = schemas.map(function (schema) { return schema.title; });
+    var duplicates = _.keys(_.pickBy(_.countBy(titles), function (count) { return count > 1; }));
     assert(duplicates.length === 0, 'Duplicate schemas for: ' + duplicates);
-    const validator = new Validator();
+    var validator = new Validator();
     // Register custom format validators that ignore undefined instances
     // since jsonschema will still call the format validator on a missing
     // (optional)  property
@@ -17794,17 +17899,17 @@ function loadSchemas() {
         return utils_1.isValidSecret(instance);
     };
     // Register under the root URI '/'
-    _.forEach(schemas, schema => validator.addSchema(schema, '/' + schema.title));
+    _.forEach(schemas, function (schema) { return validator.addSchema(schema, '/' + schema.title); });
     return validator;
 }
-const schemaValidator = loadSchemas();
+var schemaValidator = loadSchemas();
 function schemaValidate(schemaName, object) {
     // Lookup under the root URI '/'
-    const schema = schemaValidator.getSchema('/' + schemaName);
+    var schema = schemaValidator.getSchema('/' + schemaName);
     if (schema === undefined) {
         throw new errors_1.ValidationError('no schema for ' + schemaName);
     }
-    const result = schemaValidator.validate(object, schema);
+    var result = schemaValidator.validate(object, schema);
     if (!result.valid) {
         throw new errors_1.ValidationError(result.errors.join());
     }
@@ -18478,12 +18583,12 @@ module.exports = Array.isArray || function (arr) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = __webpack_require__(1);
-const assert = __webpack_require__(2);
+var _ = __webpack_require__(1);
+var assert = __webpack_require__(2);
 function mergeIntervals(intervals) {
-    const stack = [[-Infinity, -Infinity]];
-    _.sortBy(intervals, x => x[0]).forEach(interval => {
-        const lastInterval = stack.pop();
+    var stack = [[-Infinity, -Infinity]];
+    _.sortBy(intervals, function (x) { return x[0]; }).forEach(function (interval) {
+        var lastInterval = stack.pop();
         if (interval[0] <= lastInterval[1] + 1) {
             stack.push([lastInterval[0], Math.max(interval[1], lastInterval[1])]);
         }
@@ -18494,37 +18599,41 @@ function mergeIntervals(intervals) {
     });
     return stack.slice(1);
 }
-class RangeSet {
-    constructor() {
+var RangeSet = /** @class */ (function () {
+    function RangeSet() {
         this.reset();
     }
-    reset() {
+    RangeSet.prototype.reset = function () {
         this.ranges = [];
-    }
-    serialize() {
-        return this.ranges.map(range => range[0].toString() + '-' + range[1].toString()).join(',');
-    }
-    addRange(start, end) {
+    };
+    RangeSet.prototype.serialize = function () {
+        return this.ranges.map(function (range) {
+            return range[0].toString() + '-' + range[1].toString();
+        }).join(',');
+    };
+    RangeSet.prototype.addRange = function (start, end) {
         assert(start <= end, 'invalid range');
         this.ranges = mergeIntervals(this.ranges.concat([[start, end]]));
-    }
-    addValue(value) {
+    };
+    RangeSet.prototype.addValue = function (value) {
         this.addRange(value, value);
-    }
-    parseAndAddRanges(rangesString) {
-        const rangeStrings = rangesString.split(',');
-        _.forEach(rangeStrings, rangeString => {
-            const range = rangeString.split('-').map(Number);
-            this.addRange(range[0], range.length === 1 ? range[0] : range[1]);
+    };
+    RangeSet.prototype.parseAndAddRanges = function (rangesString) {
+        var _this = this;
+        var rangeStrings = rangesString.split(',');
+        _.forEach(rangeStrings, function (rangeString) {
+            var range = rangeString.split('-').map(Number);
+            _this.addRange(range[0], range.length === 1 ? range[0] : range[1]);
         });
-    }
-    containsRange(start, end) {
-        return _.some(this.ranges, range => range[0] <= start && range[1] >= end);
-    }
-    containsValue(value) {
+    };
+    RangeSet.prototype.containsRange = function (start, end) {
+        return _.some(this.ranges, function (range) { return range[0] <= start && range[1] >= end; });
+    };
+    RangeSet.prototype.containsValue = function (value) {
         return this.containsRange(value, value);
-    }
-}
+    };
+    return RangeSet;
+}());
 exports.default = RangeSet;
 
 
@@ -18898,7 +19007,7 @@ var Stream = __webpack_require__(69);
 
 /*<replacement>*/
 
-var Buffer = __webpack_require__(8).Buffer;
+var Buffer = __webpack_require__(9).Buffer;
 var OurUint8Array = global.Uint8Array || function () {};
 function _uint8ArrayToBuffer(chunk) {
   return Buffer.from(chunk);
@@ -20179,30 +20288,30 @@ function done(stream, er, data) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = __webpack_require__(1);
-const utils = __webpack_require__(17);
-const transaction_1 = __webpack_require__(49);
-const common_1 = __webpack_require__(0);
+var _ = __webpack_require__(1);
+var utils = __webpack_require__(17);
+var transaction_1 = __webpack_require__(49);
+var common_1 = __webpack_require__(0);
 function attachTransactionDate(connection, tx) {
     if (tx.date) {
         return Promise.resolve(tx);
     }
-    const ledgerVersion = tx.ledger_index || tx.LedgerSequence;
+    var ledgerVersion = tx.ledger_index || tx.LedgerSequence;
     if (!ledgerVersion) {
-        return new Promise(() => {
+        return new Promise(function () {
             throw new common_1.errors.NotFoundError('ledger_index and LedgerSequence not found in tx');
         });
     }
-    const request = {
+    var request = {
         command: 'ledger',
         ledger_index: ledgerVersion
     };
-    return connection.request(request).then(data => {
+    return connection.request(request).then(function (data) {
         if (typeof data.ledger.close_time === 'number') {
             return _.assign({ date: data.ledger.close_time }, tx);
         }
         throw new common_1.errors.UnexpectedError('Ledger missing close_time');
-    }).catch(error => {
+    }).catch(function (error) {
         if (error instanceof common_1.errors.UnexpectedError) {
             throw error;
         }
@@ -20216,13 +20325,13 @@ function isTransactionInRange(tx, options) {
             || tx.ledger_index <= options.maxLedgerVersion);
 }
 function convertError(connection, options, error) {
-    const _error = (error.message === 'txnNotFound') ?
+    var _error = (error.message === 'txnNotFound') ?
         new common_1.errors.NotFoundError('Transaction not found') : error;
     if (_error instanceof common_1.errors.NotFoundError) {
-        return utils.hasCompleteLedgerRange(connection, options.minLedgerVersion, options.maxLedgerVersion).then(hasCompleteLedgerRange => {
+        return utils.hasCompleteLedgerRange(connection, options.minLedgerVersion, options.maxLedgerVersion).then(function (hasCompleteLedgerRange) {
             if (!hasCompleteLedgerRange) {
                 return utils.isPendingLedgerVersion(connection, options.maxLedgerVersion)
-                    .then(isPendingLedgerVersion => {
+                    .then(function (isPendingLedgerVersion) {
                     return isPendingLedgerVersion ?
                         new common_1.errors.PendingLedgerVersionError() :
                         new common_1.errors.MissingLedgerHistoryError();
@@ -20239,17 +20348,21 @@ function formatResponse(options, tx) {
     }
     return transaction_1.default(tx);
 }
-function getTransaction(id, options = {}) {
-    common_1.validate.getTransaction({ id, options });
-    const request = {
+function getTransaction(id, options) {
+    var _this = this;
+    if (options === void 0) { options = {}; }
+    common_1.validate.getTransaction({ id: id, options: options });
+    var request = {
         command: 'tx',
         transaction: id,
         binary: false
     };
-    return utils.ensureLedgerVersion.call(this, options).then(_options => {
-        return this.connection.request(request).then((tx) => attachTransactionDate(this.connection, tx)).then(_.partial(formatResponse, _options))
-            .catch(error => {
-            return convertError(this.connection, _options, error).then(_error => {
+    return utils.ensureLedgerVersion.call(this, options).then(function (_options) {
+        return _this.connection.request(request).then(function (tx) {
+            return attachTransactionDate(_this.connection, tx);
+        }).then(_.partial(formatResponse, _options))
+            .catch(function (error) {
+            return convertError(_this.connection, _options, error).then(function (_error) {
                 throw _error;
             });
         });
@@ -20407,10 +20520,10 @@ module.exports.parseFinalBalances = parseFinalBalances
 "use strict";
 /* WEBPACK VAR INJECTION */(function(Buffer) {
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = __webpack_require__(1);
-const bignumber_js_1 = __webpack_require__(5);
-const common_1 = __webpack_require__(0);
-const AccountFields = common_1.constants.AccountFields;
+var _ = __webpack_require__(1);
+var bignumber_js_1 = __webpack_require__(5);
+var common_1 = __webpack_require__(0);
+var AccountFields = common_1.constants.AccountFields;
 function parseField(info, value) {
     if (info.encoding === 'hex' && !info.length) { // e.g. "domain"
         return new Buffer(value, 'hex').toString('ascii');
@@ -20421,11 +20534,11 @@ function parseField(info, value) {
     return value;
 }
 function parseFields(data) {
-    const settings = {};
-    for (const fieldName in AccountFields) {
-        const fieldValue = data[fieldName];
+    var settings = {};
+    for (var fieldName in AccountFields) {
+        var fieldValue = data[fieldName];
         if (fieldValue !== undefined) {
-            const info = AccountFields[fieldName];
+            var info = AccountFields[fieldName];
             settings[info.name] = parseField(info, fieldValue);
         }
     }
@@ -20440,7 +20553,7 @@ function parseFields(data) {
             settings.signers.threshold = data.signer_lists[0].SignerQuorum;
         }
         if (data.signer_lists[0].SignerEntries) {
-            settings.signers.weights = _.map(data.signer_lists[0].SignerEntries, (entry) => {
+            settings.signers.weights = _.map(data.signer_lists[0].SignerEntries, function (entry) {
                 return {
                     address: entry.SignerEntry.Account,
                     weight: entry.SignerEntry.SignerWeight
@@ -25491,7 +25604,7 @@ var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol
 var BN = __webpack_require__(28);
 var makeClass = __webpack_require__(4);var _require = 
 
-__webpack_require__(9);var bytesToHex = _require.bytesToHex;var parseBytes = _require.parseBytes;var serializeUIntN = _require.serializeUIntN;var _require2 = 
+__webpack_require__(10);var bytesToHex = _require.bytesToHex;var parseBytes = _require.parseBytes;var serializeUIntN = _require.serializeUIntN;var _require2 = 
 __webpack_require__(41);var UInt = _require2.UInt;
 
 var HEX_REGEX = /^[A-F0-9]{16}$/;
@@ -25675,7 +25788,7 @@ module.exports = function createHash (alg) {
 
 "use strict";
 
-var Buffer = __webpack_require__(8).Buffer
+var Buffer = __webpack_require__(9).Buffer
 var Transform = __webpack_require__(81).Transform
 var inherits = __webpack_require__(3)
 
@@ -25918,7 +26031,7 @@ Stream.prototype.pipe = function(dest, options) {
 
 var inherits = __webpack_require__(3)
 var Hash = __webpack_require__(29)
-var Buffer = __webpack_require__(8).Buffer
+var Buffer = __webpack_require__(9).Buffer
 
 var K = [
   0x428A2F98, 0x71374491, 0xB5C0FBCF, 0xE9B5DBA5,
@@ -26051,7 +26164,7 @@ module.exports = Sha256
 
 var inherits = __webpack_require__(3)
 var Hash = __webpack_require__(29)
-var Buffer = __webpack_require__(8).Buffer
+var Buffer = __webpack_require__(9).Buffer
 
 var K = [
   0x428a2f98, 0xd728ae22, 0x71374491, 0x23ef65cd,
@@ -26802,12 +26915,12 @@ module.exports = sha512half;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const orderFlags = {
+var orderFlags = {
     Passive: 0x00010000,
     Sell: 0x00020000 // offer was placed as a sell
 };
 exports.orderFlags = orderFlags;
-const trustlineFlags = {
+var trustlineFlags = {
     LowReserve: 0x00010000,
     HighReserve: 0x00020000,
     LowAuth: 0x00040000,
@@ -26830,7 +26943,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 var api_1 = __webpack_require__(56);
 exports.CallAPI = api_1.CallAPI;
 // Broadcast api is experimental
-var broadcast_1 = __webpack_require__(346);
+var broadcast_1 = __webpack_require__(348);
 exports.CallAPIBroadcast = broadcast_1.CallAPIBroadcast;
 
 
@@ -26841,8 +26954,8 @@ exports.CallAPIBroadcast = broadcast_1.CallAPIBroadcast;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const txflags_1 = __webpack_require__(57);
-const accountRootFlags = {
+var txflags_1 = __webpack_require__(57);
+var accountRootFlags = {
     PasswordSpent: 0x00010000,
     RequireDestTag: 0x00020000,
     RequireAuth: 0x00040000,
@@ -26852,7 +26965,7 @@ const accountRootFlags = {
     GlobalFreeze: 0x00400000,
     DefaultCall: 0x00800000
 };
-const AccountFlags = {
+var AccountFlags = {
     passwordSpent: accountRootFlags.PasswordSpent,
     requireDestinationTag: accountRootFlags.RequireDestTag,
     requireAuthorization: accountRootFlags.RequireAuth,
@@ -26863,7 +26976,7 @@ const AccountFlags = {
     defaultCall: accountRootFlags.DefaultCall
 };
 exports.AccountFlags = AccountFlags;
-const AccountFlagIndices = {
+var AccountFlagIndices = {
     requireDestinationTag: txflags_1.txFlagIndices.AccountSet.asfRequireDest,
     requireAuthorization: txflags_1.txFlagIndices.AccountSet.asfRequireAuth,
     disallowIncomingCALL: txflags_1.txFlagIndices.AccountSet.asfDisallowCALL,
@@ -26874,7 +26987,7 @@ const AccountFlagIndices = {
     defaultCall: txflags_1.txFlagIndices.AccountSet.asfDefaultCall
 };
 exports.AccountFlagIndices = AccountFlagIndices;
-const AccountFields = {
+var AccountFields = {
     EmailHash: { name: 'emailHash', encoding: 'hex',
         length: 32, defaults: '0' },
     MessageKey: { name: 'messageKey' },
@@ -26927,9 +27040,9 @@ exports.getConstructorName = getConstructorName;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = __webpack_require__(1);
-const errors_1 = __webpack_require__(37);
-const schema_validator_1 = __webpack_require__(58);
+var _ = __webpack_require__(1);
+var errors_1 = __webpack_require__(37);
+var schema_validator_1 = __webpack_require__(58);
 function error(text) {
     return new errors_1.ValidationError(text);
 }
@@ -29738,7 +29851,7 @@ module.exports = {
 /* 113 */
 /***/ (function(module, exports) {
 
-module.exports = {"_from":"elliptic@^5.1.0","_id":"elliptic@5.2.1","_inBundle":false,"_integrity":"sha1-+ilLZWPG3bybo9yFlGh66ECFjxA=","_location":"/elliptic","_phantomChildren":{},"_requested":{"type":"range","registry":true,"raw":"elliptic@^5.1.0","name":"elliptic","escapedName":"elliptic","rawSpec":"^5.1.0","saveSpec":null,"fetchSpec":"^5.1.0"},"_requiredBy":["/","/call-keypairs"],"_resolved":"https://registry.npmjs.org/elliptic/-/elliptic-5.2.1.tgz","_shasum":"fa294b6563c6ddbc9ba3dc8594687ae840858f10","_spec":"elliptic@^5.1.0","_where":"/home/call/call/call-lib","author":{"name":"Fedor Indutny","email":"fedor@indutny.com"},"bugs":{"url":"https://github.com/indutny/elliptic/issues"},"bundleDependencies":false,"dependencies":{"bn.js":"^3.1.1","brorand":"^1.0.1","hash.js":"^1.0.0","inherits":"^2.0.1"},"deprecated":false,"description":"EC cryptography","devDependencies":{"browserify":"^3.44.2","coveralls":"^2.11.3","istanbul":"^0.3.17","jscs":"^1.11.3","jshint":"^2.6.0","mocha":"^2.1.0","uglify-js":"^2.4.13"},"homepage":"https://github.com/indutny/elliptic","keywords":["EC","Elliptic","curve","Cryptography"],"license":"MIT","main":"lib/elliptic.js","name":"elliptic","repository":{"type":"git","url":"git+ssh://git@github.com/indutny/elliptic.git"},"scripts":{"coveralls":"cat ./coverage/lcov.info | coveralls","test":"make lint && istanbul test _mocha --reporter=spec test/*-test.js"},"version":"5.2.1"}
+module.exports = {"_from":"elliptic@^5.1.0","_id":"elliptic@5.2.1","_inBundle":false,"_integrity":"sha1-+ilLZWPG3bybo9yFlGh66ECFjxA=","_location":"/elliptic","_phantomChildren":{},"_requested":{"type":"range","registry":true,"raw":"elliptic@^5.1.0","name":"elliptic","escapedName":"elliptic","rawSpec":"^5.1.0","saveSpec":null,"fetchSpec":"^5.1.0"},"_requiredBy":["/","/call-keypairs"],"_resolved":"https://registry.npmjs.org/elliptic/-/elliptic-5.2.1.tgz","_shasum":"fa294b6563c6ddbc9ba3dc8594687ae840858f10","_spec":"elliptic@^5.1.0","_where":"/Users/lando/work/call-lib","author":{"name":"Fedor Indutny","email":"fedor@indutny.com"},"bugs":{"url":"https://github.com/indutny/elliptic/issues"},"bundleDependencies":false,"dependencies":{"bn.js":"^3.1.1","brorand":"^1.0.1","hash.js":"^1.0.0","inherits":"^2.0.1"},"deprecated":false,"description":"EC cryptography","devDependencies":{"browserify":"^3.44.2","coveralls":"^2.11.3","istanbul":"^0.3.17","jscs":"^1.11.3","jshint":"^2.6.0","mocha":"^2.1.0","uglify-js":"^2.4.13"},"homepage":"https://github.com/indutny/elliptic","keywords":["EC","Elliptic","curve","Cryptography"],"license":"MIT","main":"lib/elliptic.js","name":"elliptic","repository":{"type":"git","url":"git+ssh://git@github.com/indutny/elliptic.git"},"scripts":{"coveralls":"cat ./coverage/lcov.info | coveralls","test":"make lint && istanbul test _mocha --reporter=spec test/*-test.js"},"version":"5.2.1"}
 
 /***/ }),
 /* 114 */
@@ -34452,8 +34565,8 @@ module.exports = {"$schema":"http://json-schema.org/draft-04/schema#","title":"c
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const utils_1 = __webpack_require__(46);
-const bignumber_js_1 = __webpack_require__(5);
+var utils_1 = __webpack_require__(46);
+var bignumber_js_1 = __webpack_require__(5);
 // function renameKeys(object, mapping) {
 //   _.forEach(mapping, (to, from) => {
 //     object[to] = object[from]
@@ -34461,8 +34574,8 @@ const bignumber_js_1 = __webpack_require__(5);
 //   })
 // }
 function getServerInfo(connection) {
-    return connection.request({ command: 'server_info' }).then(response => {
-        const info = utils_1.convertKeysFromSnakeCaseToCamelCase(response.info);
+    return connection.request({ command: 'server_info' }).then(function (response) {
+        var info = utils_1.convertKeysFromSnakeCaseToCamelCase(response.info);
         // renameKeys(info, {hostid: 'hostID'})
         // if (info.validatedLedger) {
         //   renameKeys(info.validatedLedger, {
@@ -34488,7 +34601,7 @@ function computeFeeFromServerInfo(cushion, serverInfo) {
         times(cushion).toString();
 }
 function getFee(connection, cushion) {
-    return getServerInfo(connection).then(serverInfo => {
+    return getServerInfo(connection).then(function (serverInfo) {
         return computeFeeFromServerInfo(cushion, serverInfo);
     });
 }
@@ -34501,49 +34614,62 @@ exports.getFee = getFee;
 
 "use strict";
 /* WEBPACK VAR INJECTION */(function(process, Buffer) {
+var __extends = (this && this.__extends) || (function () {
+    var extendStatics = Object.setPrototypeOf ||
+        ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
+        function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
+    return function (d, b) {
+        extendStatics(d, b);
+        function __() { this.constructor = d; }
+        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = __webpack_require__(1);
-const events_1 = __webpack_require__(20);
-const url_1 = __webpack_require__(18);
-const WebSocket = __webpack_require__(238);
-const rangeset_1 = __webpack_require__(65);
-const errors_1 = __webpack_require__(37);
+var _ = __webpack_require__(1);
+var events_1 = __webpack_require__(20);
+var url_1 = __webpack_require__(18);
+var WebSocket = __webpack_require__(238);
+var rangeset_1 = __webpack_require__(65);
+var errors_1 = __webpack_require__(37);
 function isStreamMessageType(type) {
     return type === 'ledgerClosed' ||
         type === 'transaction' ||
         type === 'path_find';
 }
-class Connection extends events_1.EventEmitter {
-    constructor(url, options = {}) {
-        super();
-        this._isReady = false;
-        this._ws = null;
-        this._ledgerVersion = null;
-        this._availableLedgerVersions = new rangeset_1.default();
-        this._nextRequestID = 1;
-        this._retry = 0;
-        this._retryTimer = null;
-        this._onOpenErrorBound = null;
-        this._onUnexpectedCloseBound = null;
-        this._fee_base = null;
-        this._fee_ref = null;
-        this.setMaxListeners(Infinity);
-        this._url = url;
-        this._trace = options.trace || false;
-        if (this._trace) {
+var Connection = /** @class */ (function (_super) {
+    __extends(Connection, _super);
+    function Connection(url, options) {
+        if (options === void 0) { options = {}; }
+        var _this = _super.call(this) || this;
+        _this._isReady = false;
+        _this._ws = null;
+        _this._ledgerVersion = null;
+        _this._availableLedgerVersions = new rangeset_1.default();
+        _this._nextRequestID = 1;
+        _this._retry = 0;
+        _this._retryTimer = null;
+        _this._onOpenErrorBound = null;
+        _this._onUnexpectedCloseBound = null;
+        _this._fee_base = null;
+        _this._fee_ref = null;
+        _this.setMaxListeners(Infinity);
+        _this._url = url;
+        _this._trace = options.trace || false;
+        if (_this._trace) {
             // for easier unit testing
-            this._console = console;
+            _this._console = console;
         }
-        this._proxyURL = options.proxy;
-        this._proxyAuthorization = options.proxyAuthorization;
-        this._authorization = options.authorization;
-        this._trustedCertificates = options.trustedCertificates;
-        this._key = options.key;
-        this._passphrase = options.passphrase;
-        this._certificate = options.certificate;
-        this._timeout = options.timeout || (20 * 1000);
+        _this._proxyURL = options.proxy;
+        _this._proxyAuthorization = options.proxyAuthorization;
+        _this._authorization = options.authorization;
+        _this._trustedCertificates = options.trustedCertificates;
+        _this._key = options.key;
+        _this._passphrase = options.passphrase;
+        _this._certificate = options.certificate;
+        _this._timeout = options.timeout || (20 * 1000);
+        return _this;
     }
-    _updateLedgerVersions(data) {
+    Connection.prototype._updateLedgerVersions = function (data) {
         this._ledgerVersion = Number(data.ledger_index);
         if (data.validated_ledgers) {
             this._availableLedgerVersions.reset();
@@ -34552,14 +34678,14 @@ class Connection extends events_1.EventEmitter {
         else {
             this._availableLedgerVersions.addValue(this._ledgerVersion);
         }
-    }
-    _updateFees(data) {
+    };
+    Connection.prototype._updateFees = function (data) {
         this._fee_base = Number(data.fee_base);
         this._fee_ref = Number(data.fee_ref);
-    }
+    };
     // return value is array of arguments to Connection.emit
-    _parseMessage(message) {
-        const data = JSON.parse(message);
+    Connection.prototype._parseMessage = function (message) {
+        var data = JSON.parse(message);
         if (data.type === 'response') {
             if (!(Number.isInteger(data.id) && data.id >= 0)) {
                 throw new errors_1.ResponseFormatError('valid id not found in response');
@@ -34577,12 +34703,12 @@ class Connection extends events_1.EventEmitter {
             return ['error', data.error, data.error_message, data]; // e.g. slowDown
         }
         throw new errors_1.ResponseFormatError('unrecognized message type: ' + data.type);
-    }
-    _onMessage(message) {
+    };
+    Connection.prototype._onMessage = function (message) {
         if (this._trace) {
             this._console.log(message);
         }
-        let parameters;
+        var parameters;
         try {
             parameters = this._parseMessage(message);
         }
@@ -34593,17 +34719,25 @@ class Connection extends events_1.EventEmitter {
         // we don't want this inside the try/catch or exceptions in listener
         // will be caught
         this.emit.apply(this, parameters);
-    }
-    get _state() {
-        return this._ws ? this._ws.readyState : WebSocket.CLOSED;
-    }
-    get _shouldBeConnected() {
-        return this._ws !== null;
-    }
-    isConnected() {
+    };
+    Object.defineProperty(Connection.prototype, "_state", {
+        get: function () {
+            return this._ws ? this._ws.readyState : WebSocket.CLOSED;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Connection.prototype, "_shouldBeConnected", {
+        get: function () {
+            return this._ws !== null;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Connection.prototype.isConnected = function () {
         return this._state === WebSocket.OPEN && this._isReady;
-    }
-    _onUnexpectedClose(beforeOpen, resolve, reject, code) {
+    };
+    Connection.prototype._onUnexpectedClose = function (beforeOpen, resolve, reject, code) {
         if (this._onOpenErrorBound) {
             this._ws.removeListener('error', this._onOpenErrorBound);
             this._onOpenErrorBound = null;
@@ -34623,8 +34757,8 @@ class Connection extends events_1.EventEmitter {
             this.emit('disconnected', code || 1006);
             this._retryConnect();
         }
-    }
-    _calculateTimeout(retriesCount) {
+    };
+    Connection.prototype._calculateTimeout = function (retriesCount) {
         return (retriesCount < 40)
             // First, for 2 seconds: 20 times per second
             ? (1000 / 20)
@@ -34636,22 +34770,24 @@ class Connection extends events_1.EventEmitter {
                     ? (10 * 1000)
                     // Then: once every 30 seconds
                     : (30 * 1000);
-    }
-    _retryConnect() {
+    };
+    Connection.prototype._retryConnect = function () {
+        var _this = this;
         this._retry += 1;
-        const retryTimeout = this._calculateTimeout(this._retry);
-        this._retryTimer = setTimeout(() => {
-            this.emit('reconnecting', this._retry);
-            this.connect().catch(this._retryConnect.bind(this));
+        var retryTimeout = this._calculateTimeout(this._retry);
+        this._retryTimer = setTimeout(function () {
+            _this.emit('reconnecting', _this._retry);
+            _this.connect().catch(_this._retryConnect.bind(_this));
         }, retryTimeout);
-    }
-    _clearReconnectTimer() {
+    };
+    Connection.prototype._clearReconnectTimer = function () {
         if (this._retryTimer !== null) {
             clearTimeout(this._retryTimer);
             this._retryTimer = null;
         }
-    }
-    _onOpen() {
+    };
+    Connection.prototype._onOpen = function () {
+        var _this = this;
         if (!this._ws) {
             return Promise.reject(new errors_1.DisconnectedError());
         }
@@ -34659,71 +34795,71 @@ class Connection extends events_1.EventEmitter {
             this._ws.removeListener('error', this._onOpenErrorBound);
             this._onOpenErrorBound = null;
         }
-        const request = {
+        var request = {
             command: 'subscribe',
             streams: ['ledger']
         };
-        return this.request(request).then((data) => {
+        return this.request(request).then(function (data) {
             if (_.isEmpty(data) || !data.ledger_index) {
-                return this._disconnect(false).then(() => {
+                return _this._disconnect(false).then(function () {
                     throw new errors_1.CalledNotInitializedError('Called not initialized');
                 });
             }
-            this._updateLedgerVersions(data);
-            this._updateFees(data);
-            this._rebindOnUnxpectedClose();
-            this._retry = 0;
-            this._ws.on('error', error => {
+            _this._updateLedgerVersions(data);
+            _this._updateFees(data);
+            _this._rebindOnUnxpectedClose();
+            _this._retry = 0;
+            _this._ws.on('error', function (error) {
                 // TODO: "type" does not exist on official error type, safe to remove?
                 if (process.browser && error && error.type === 'error') {
                     // we are in browser, ignore error - `close` event will be fired
                     // after error
                     return;
                 }
-                this.emit('error', 'websocket', error.message, error);
+                _this.emit('error', 'websocket', error.message, error);
             });
-            const request2 = {
+            var request2 = {
                 command: 'subscribe',
                 streams: ['transactions']
             };
-            return this.request(request2).then((data) => {
-                this._ws.on('error', error => {
+            return _this.request(request2).then(function (data) {
+                _this._ws.on('error', function (error) {
                     if (process.browser && error && error.type === 'error') {
                         return;
                     }
-                    this.emit('error', 'websocket', error.message, error);
+                    _this.emit('error', 'websocket', error.message, error);
                 });
-                this._isReady = true;
-                this.emit('connected');
+                _this._isReady = true;
+                _this.emit('connected');
                 return undefined;
             });
         });
-    }
-    _rebindOnUnxpectedClose() {
+    };
+    Connection.prototype._rebindOnUnxpectedClose = function () {
         if (this._onUnexpectedCloseBound) {
             this._ws.removeListener('close', this._onUnexpectedCloseBound);
         }
         this._onUnexpectedCloseBound =
             this._onUnexpectedClose.bind(this, false, null, null);
         this._ws.once('close', this._onUnexpectedCloseBound);
-    }
-    _unbindOnUnxpectedClose() {
+    };
+    Connection.prototype._unbindOnUnxpectedClose = function () {
         if (this._onUnexpectedCloseBound) {
             this._ws.removeListener('close', this._onUnexpectedCloseBound);
         }
         this._onUnexpectedCloseBound = null;
-    }
-    _onOpenError(reject, error) {
+    };
+    Connection.prototype._onOpenError = function (reject, error) {
         this._onOpenErrorBound = null;
         this._unbindOnUnxpectedClose();
         reject(new errors_1.NotConnectedError(error && error.message));
-    }
-    _createWebSocket() {
-        const options = {};
+    };
+    Connection.prototype._createWebSocket = function () {
+        var options = {};
         if (this._proxyURL !== undefined) {
-            const parsedURL = url_1.parse(this._url);
-            const parsedProxyURL = url_1.parse(this._proxyURL);
-            const proxyOverrides = _.omitBy({
+            var parsedURL = url_1.parse(this._url);
+            var parsedProxyURL = url_1.parse(this._proxyURL);
+            var proxyOverrides = _.omitBy({
                 secureEndpoint: (parsedURL.protocol === 'wss:'),
                 secureProxy: (parsedProxyURL.protocol === 'https:'),
                 auth: this._proxyAuthorization,
@@ -34732,8 +34868,8 @@ class Connection extends events_1.EventEmitter {
                 passphrase: this._passphrase,
                 cert: this._certificate
             }, _.isUndefined);
-            const proxyOptions = _.assign({}, parsedProxyURL, proxyOverrides);
-            let HttpsProxyAgent;
+            var proxyOptions = _.assign({}, parsedProxyURL, proxyOverrides);
+            var HttpsProxyAgent = void 0;
             try {
                 HttpsProxyAgent = __webpack_require__(239);
             }
@@ -34743,38 +34879,39 @@ class Connection extends events_1.EventEmitter {
             options.agent = new HttpsProxyAgent(proxyOptions);
         }
         if (this._authorization !== undefined) {
-            const base64 = new Buffer(this._authorization).toString('base64');
-            options.headers = { Authorization: `Basic ${base64}` };
+            var base64 = new Buffer(this._authorization).toString('base64');
+            options.headers = { Authorization: "Basic " + base64 };
         }
-        const optionsOverrides = _.omitBy({
+        var optionsOverrides = _.omitBy({
             ca: this._trustedCertificates,
             key: this._key,
             passphrase: this._passphrase,
             cert: this._certificate
         }, _.isUndefined);
-        const websocketOptions = _.assign({}, options, optionsOverrides);
-        const websocket = new WebSocket(this._url, null, websocketOptions);
+        var websocketOptions = _.assign({}, options, optionsOverrides);
+        var websocket = new WebSocket(this._url, null, websocketOptions);
         // we will have a listener for each outstanding request,
         // so we have to raise the limit (the default is 10)
         if (typeof websocket.setMaxListeners === 'function') {
             websocket.setMaxListeners(Infinity);
         }
         return websocket;
-    }
-    connect() {
+    };
+    Connection.prototype.connect = function () {
+        var _this = this;
         this._clearReconnectTimer();
-        return new Promise((resolve, reject) => {
-            if (!this._url) {
+        return new Promise(function (resolve, reject) {
+            if (!_this._url) {
                 reject(new errors_1.ConnectionError('Cannot connect because no server was specified'));
             }
-            if (this._state === WebSocket.OPEN) {
+            if (_this._state === WebSocket.OPEN) {
                 resolve();
             }
-            else if (this._state === WebSocket.CONNECTING) {
-                this._ws.once('open', resolve);
+            else if (_this._state === WebSocket.CONNECTING) {
+                _this._ws.once('open', resolve);
             }
             else {
-                this._ws = this._createWebSocket();
+                _this._ws = _this._createWebSocket();
                 // when an error causes the connection to close, the close event
                 // should still be emitted; the "ws" documentation says: "The close
                 // event is also emitted when then underlying net.Socket closes the
@@ -34782,88 +34919,92 @@ class Connection extends events_1.EventEmitter {
                 // In case if there is connection error (say, server is not responding)
                 // we must return this error to connection's caller. After successful
                 // opening, we will forward all errors to main api object.
-                this._onOpenErrorBound = this._onOpenError.bind(this, reject);
-                this._ws.once('error', this._onOpenErrorBound);
-                this._ws.on('message', this._onMessage.bind(this));
+                _this._onOpenErrorBound = _this._onOpenError.bind(_this, reject);
+                _this._ws.once('error', _this._onOpenErrorBound);
+                _this._ws.on('message', _this._onMessage.bind(_this));
                 // in browser close event can came before open event, so we must
                 // resolve connect's promise after reconnect in that case.
                 // after open event we will rebound _onUnexpectedCloseBound
                 // without resolve and reject functions
-                this._onUnexpectedCloseBound = this._onUnexpectedClose.bind(this, true, resolve, reject);
-                this._ws.once('close', this._onUnexpectedCloseBound);
-                this._ws.once('open', () => this._onOpen().then(resolve, reject));
+                _this._onUnexpectedCloseBound = _this._onUnexpectedClose.bind(_this, true, resolve, reject);
+                _this._ws.once('close', _this._onUnexpectedCloseBound);
+                _this._ws.once('open', function () { return _this._onOpen().then(resolve, reject); });
             }
         });
-    }
-    disconnect() {
+    };
+    Connection.prototype.disconnect = function () {
         return this._disconnect(true);
-    }
-    _disconnect(calledByUser) {
+    };
+    Connection.prototype._disconnect = function (calledByUser) {
+        var _this = this;
         if (calledByUser) {
             this._clearReconnectTimer();
             this._retry = 0;
         }
-        return new Promise(resolve => {
-            if (this._state === WebSocket.CLOSED) {
+        return new Promise(function (resolve) {
+            if (_this._state === WebSocket.CLOSED) {
                 resolve();
             }
-            else if (this._state === WebSocket.CLOSING) {
-                this._ws.once('close', resolve);
+            else if (_this._state === WebSocket.CLOSING) {
+                _this._ws.once('close', resolve);
             }
             else {
-                if (this._onUnexpectedCloseBound) {
-                    this._ws.removeListener('close', this._onUnexpectedCloseBound);
-                    this._onUnexpectedCloseBound = null;
+                if (_this._onUnexpectedCloseBound) {
+                    _this._ws.removeListener('close', _this._onUnexpectedCloseBound);
+                    _this._onUnexpectedCloseBound = null;
                 }
-                this._ws.once('close', code => {
-                    this._ws = null;
-                    this._isReady = false;
+                _this._ws.once('close', function (code) {
+                    _this._ws = null;
+                    _this._isReady = false;
                     if (calledByUser) {
-                        this.emit('disconnected', code || 1000); // 1000 - CLOSE_NORMAL
+                        _this.emit('disconnected', code || 1000); // 1000 - CLOSE_NORMAL
                     }
                     resolve();
                 });
-                this._ws.close();
+                _this._ws.close();
             }
         });
-    }
-    reconnect() {
-        return this.disconnect().then(() => this.connect());
-    }
-    _whenReady(promise) {
-        return new Promise((resolve, reject) => {
-            if (!this._shouldBeConnected) {
+    };
+    Connection.prototype.reconnect = function () {
+        var _this = this;
+        return this.disconnect().then(function () { return _this.connect(); });
+    };
+    Connection.prototype._whenReady = function (promise) {
+        var _this = this;
+        return new Promise(function (resolve, reject) {
+            if (!_this._shouldBeConnected) {
                 reject(new errors_1.NotConnectedError());
             }
-            else if (this._state === WebSocket.OPEN && this._isReady) {
+            else if (_this._state === WebSocket.OPEN && _this._isReady) {
                 promise.then(resolve, reject);
             }
             else {
-                this.once('connected', () => promise.then(resolve, reject));
+                _this.once('connected', function () { return promise.then(resolve, reject); });
             }
         });
-    }
-    getLedgerVersion() {
+    };
+    Connection.prototype.getLedgerVersion = function () {
         return this._whenReady(Promise.resolve(this._ledgerVersion));
-    }
-    hasLedgerVersions(lowLedgerVersion, highLedgerVersion) {
+    };
+    Connection.prototype.hasLedgerVersions = function (lowLedgerVersion, highLedgerVersion) {
         return this._whenReady(Promise.resolve(this._availableLedgerVersions.containsRange(lowLedgerVersion, highLedgerVersion || this._ledgerVersion)));
-    }
-    hasLedgerVersion(ledgerVersion) {
+    };
+    Connection.prototype.hasLedgerVersion = function (ledgerVersion) {
         return this.hasLedgerVersions(ledgerVersion, ledgerVersion);
-    }
-    getFeeBase() {
+    };
+    Connection.prototype.getFeeBase = function () {
         return this._whenReady(Promise.resolve(Number(this._fee_base)));
-    }
-    getFeeRef() {
+    };
+    Connection.prototype.getFeeRef = function () {
         return this._whenReady(Promise.resolve(Number(this._fee_ref)));
-    }
-    _send(message) {
+    };
+    Connection.prototype._send = function (message) {
+        var _this = this;
         if (this._trace) {
             this._console.log(message);
         }
-        return new Promise((resolve, reject) => {
-            this._ws.send(message, undefined, error => {
+        return new Promise(function (resolve, reject) {
+            _this._ws.send(message, undefined, function (error) {
                 if (error) {
                     reject(new errors_1.DisconnectedError(error.message));
                 }
@@ -34872,17 +35013,18 @@ class Connection extends events_1.EventEmitter {
                 }
             });
         });
-    }
-    request(request, timeout) {
-        return new Promise((resolve, reject) => {
-            if (!this._shouldBeConnected) {
+    };
+    Connection.prototype.request = function (request, timeout) {
+        var _this = this;
+        return new Promise(function (resolve, reject) {
+            if (!_this._shouldBeConnected) {
                 reject(new errors_1.NotConnectedError());
             }
-            let timer = null;
-            const self = this;
-            const id = this._nextRequestID;
-            this._nextRequestID += 1;
-            const eventName = id.toString();
+            var timer = null;
+            var self = _this;
+            var id = _this._nextRequestID;
+            _this._nextRequestID += 1;
+            var eventName = id.toString();
             function onDisconnect() {
                 clearTimeout(timer);
                 self.removeAllListeners(eventName);
@@ -34903,7 +35045,7 @@ class Connection extends events_1.EventEmitter {
                 cleanup();
                 reject(error);
             }
-            this.once(eventName, response => {
+            _this.once(eventName, function (response) {
                 if (response.status === 'error') {
                     _reject(new errors_1.CalledError(response.error));
                 }
@@ -34914,16 +35056,17 @@ class Connection extends events_1.EventEmitter {
                     _reject(new errors_1.ResponseFormatError('unrecognized status: ' + response.status));
                 }
             });
-            this._ws.once('close', onDisconnect);
+            _this._ws.once('close', onDisconnect);
             // JSON.stringify automatically removes keys with value of 'undefined'
-            const message = JSON.stringify(Object.assign({}, request, { id }));
-            this._whenReady(this._send(message)).then(() => {
-                const delay = timeout || this._timeout;
-                timer = setTimeout(() => _reject(new errors_1.TimeoutError()), delay);
+            var message = JSON.stringify(Object.assign({}, request, { id: id }));
+            _this._whenReady(_this._send(message)).then(function () {
+                var delay = timeout || _this._timeout;
+                timer = setTimeout(function () { return _reject(new errors_1.TimeoutError()); }, delay);
             }).catch(_reject);
         });
-    }
-}
+    };
+    return Connection;
+}(events_1.EventEmitter));
 exports.default = Connection;
 
 /* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(14), __webpack_require__(6).Buffer))
@@ -35182,45 +35325,62 @@ exports.write = function (buffer, value, offset, isLE, mLen, nBytes) {
 
 "use strict";
 
-const events_1 = __webpack_require__(20);
+var __extends = (this && this.__extends) || (function () {
+    var extendStatics = Object.setPrototypeOf ||
+        ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
+        function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
+    return function (d, b) {
+        extendStatics(d, b);
+        function __() { this.constructor = d; }
+        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+    };
+})();
+var events_1 = __webpack_require__(20);
 /**
  * Provides `EventEmitter` interface for native browser `WebSocket`,
  * same, as `ws` package provides.
  */
-class WSWrapper extends events_1.EventEmitter {
-    constructor(url, _protocols, _websocketOptions) {
-        super();
-        this.setMaxListeners(Infinity);
-        this._ws = new WebSocket(url);
-        this._ws.onclose = () => {
-            this.emit('close');
+var WSWrapper = /** @class */ (function (_super) {
+    __extends(WSWrapper, _super);
+    function WSWrapper(url, _protocols, _websocketOptions) {
+        var _this = _super.call(this) || this;
+        _this.setMaxListeners(Infinity);
+        _this._ws = new WebSocket(url);
+        _this._ws.onclose = function () {
+            _this.emit('close');
         };
-        this._ws.onopen = () => {
-            this.emit('open');
+        _this._ws.onopen = function () {
+            _this.emit('open');
         };
-        this._ws.onerror = error => {
-            this.emit('error', error);
+        _this._ws.onerror = function (error) {
+            _this.emit('error', error);
         };
-        this._ws.onmessage = message => {
-            this.emit('message', message.data);
+        _this._ws.onmessage = function (message) {
+            _this.emit('message', message.data);
         };
+        return _this;
     }
-    close() {
+    WSWrapper.prototype.close = function () {
         if (this.readyState === 1) {
             this._ws.close();
         }
-    }
-    send(message) {
+    };
+    WSWrapper.prototype.send = function (message) {
         this._ws.send(message);
-    }
-    get readyState() {
-        return this._ws.readyState;
-    }
-}
-WSWrapper.CONNECTING = 0;
-WSWrapper.OPEN = 1;
-WSWrapper.CLOSING = 2;
-WSWrapper.CLOSED = 3;
+    };
+    Object.defineProperty(WSWrapper.prototype, "readyState", {
+        get: function () {
+            return this._ws.readyState;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    WSWrapper.CONNECTING = 0;
+    WSWrapper.OPEN = 1;
+    WSWrapper.CLOSING = 2;
+    WSWrapper.CLOSED = 3;
+    return WSWrapper;
+}(events_1.EventEmitter));
 module.exports = WSWrapper;
 
 
@@ -36158,7 +36318,7 @@ var unsafeHeaders = [
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-var Buffer = __webpack_require__(8).Buffer;
+var Buffer = __webpack_require__(9).Buffer;
 var util = __webpack_require__(247);
 
 function copyBuffer(src, target, offset) {
@@ -38738,7 +38898,7 @@ function plural(ms, msAbs, n, name) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const common = __webpack_require__(0);
+var common = __webpack_require__(0);
 function isConnected() {
     return this.connection.isConnected();
 }
@@ -38760,7 +38920,7 @@ function getServerInfo() {
 }
 exports.getServerInfo = getServerInfo;
 function getFee() {
-    const cushion = this._feeCushion || 1.2;
+    var cushion = this._feeCushion || 1.2;
     return common.serverInfo.getFee(this.connection, cushion);
 }
 exports.getFee = getFee;
@@ -38988,11 +39148,11 @@ module.exports = parseQuality
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = __webpack_require__(1);
-const assert = __webpack_require__(2);
-const utils = __webpack_require__(12);
-const common_1 = __webpack_require__(0);
-const amount_1 = __webpack_require__(16);
+var _ = __webpack_require__(1);
+var assert = __webpack_require__(2);
+var utils = __webpack_require__(12);
+var common_1 = __webpack_require__(0);
+var amount_1 = __webpack_require__(16);
 function isNoDirectCall(tx) {
     return (tx.Flags & common_1.txFlags.Payment.NoCallDirect) !== 0;
 }
@@ -39005,12 +39165,12 @@ function removeGenericCounterparty(amount, address) {
 }
 function parsePayment(tx) {
     assert(tx.TransactionType === 'Payment');
-    const source = {
+    var source = {
         address: tx.Account,
         maxAmount: removeGenericCounterparty(amount_1.default(tx.SendMax || tx.Amount), tx.Account),
         tag: tx.SourceTag
     };
-    const destination = {
+    var destination = {
         address: tx.Destination,
         amount: removeGenericCounterparty(amount_1.default(tx.Amount), tx.Destination),
         tag: tx.DestinationTag
@@ -39036,10 +39196,10 @@ exports.default = parsePayment;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const assert = __webpack_require__(2);
-const utils_1 = __webpack_require__(12);
-const common_1 = __webpack_require__(0);
-const flags = common_1.txFlags.TrustSet;
+var assert = __webpack_require__(2);
+var utils_1 = __webpack_require__(12);
+var common_1 = __webpack_require__(0);
+var flags = common_1.txFlags.TrustSet;
 function parseFlag(flagsValue, trueValue, falseValue) {
     if (flagsValue & trueValue) {
         return true;
@@ -39072,9 +39232,9 @@ exports.default = parseTrustline;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const assert = __webpack_require__(2);
-const common_1 = __webpack_require__(0);
-const flags = common_1.txFlags.TrustSet;
+var assert = __webpack_require__(2);
+var common_1 = __webpack_require__(0);
+var flags = common_1.txFlags.TrustSet;
 function parseFlag(flagsValue, trueValue, falseValue) {
     if (flagsValue & trueValue) {
         return true;
@@ -39098,18 +39258,18 @@ exports.default = parseIssueSet;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const assert = __webpack_require__(2);
-const utils_1 = __webpack_require__(12);
-const amount_1 = __webpack_require__(16);
-const common_1 = __webpack_require__(0);
-const flags = common_1.txFlags.OfferCreate;
+var assert = __webpack_require__(2);
+var utils_1 = __webpack_require__(12);
+var amount_1 = __webpack_require__(16);
+var common_1 = __webpack_require__(0);
+var flags = common_1.txFlags.OfferCreate;
 function parseOrder(tx) {
     assert(tx.TransactionType === 'OfferCreate');
-    const direction = (tx.Flags & flags.Sell) === 0 ? 'buy' : 'sell';
-    const takerGetsAmount = amount_1.default(tx.TakerGets);
-    const takerPaysAmount = amount_1.default(tx.TakerPays);
-    const quantity = (direction === 'buy') ? takerPaysAmount : takerGetsAmount;
-    const totalPrice = (direction === 'buy') ? takerGetsAmount : takerPaysAmount;
+    var direction = (tx.Flags & flags.Sell) === 0 ? 'buy' : 'sell';
+    var takerGetsAmount = amount_1.default(tx.TakerGets);
+    var takerPaysAmount = amount_1.default(tx.TakerPays);
+    var quantity = (direction === 'buy') ? takerPaysAmount : takerGetsAmount;
+    var totalPrice = (direction === 'buy') ? takerGetsAmount : takerPaysAmount;
     return common_1.removeUndefined({
         direction: direction,
         quantity: quantity,
@@ -39131,7 +39291,7 @@ exports.default = parseOrder;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const assert = __webpack_require__(2);
+var assert = __webpack_require__(2);
 function parseOrderCancellation(tx) {
     assert(tx.TransactionType === 'OfferCancel');
     return {
@@ -39148,33 +39308,35 @@ exports.default = parseOrderCancellation;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = __webpack_require__(1);
-const assert = __webpack_require__(2);
-const common_1 = __webpack_require__(0);
-const AccountFlags = common_1.constants.AccountFlags;
-const fields_1 = __webpack_require__(74);
+var _ = __webpack_require__(1);
+var assert = __webpack_require__(2);
+var common_1 = __webpack_require__(0);
+var AccountFlags = common_1.constants.AccountFlags;
+var fields_1 = __webpack_require__(74);
 function getAccountRootModifiedNode(tx) {
-    const modifiedNodes = tx.meta.AffectedNodes.filter(node => node.ModifiedNode && node.ModifiedNode.LedgerEntryType === 'AccountRoot');
+    var modifiedNodes = tx.meta.AffectedNodes.filter(function (node) {
+        return node.ModifiedNode && node.ModifiedNode.LedgerEntryType === 'AccountRoot';
+    });
     assert(modifiedNodes.length === 1);
     return modifiedNodes[0].ModifiedNode;
 }
 function parseFlags(tx) {
-    const settings = {};
+    var settings = {};
     if (tx.TransactionType !== 'AccountSet') {
         return settings;
     }
-    const node = getAccountRootModifiedNode(tx);
-    const oldFlags = _.get(node.PreviousFields, 'Flags');
-    const newFlags = _.get(node.FinalFields, 'Flags');
+    var node = getAccountRootModifiedNode(tx);
+    var oldFlags = _.get(node.PreviousFields, 'Flags');
+    var newFlags = _.get(node.FinalFields, 'Flags');
     if (oldFlags !== undefined && newFlags !== undefined) {
-        const changedFlags = oldFlags ^ newFlags;
-        const setFlags = newFlags & changedFlags;
-        const clearedFlags = oldFlags & changedFlags;
-        _.forEach(AccountFlags, (flagValue, flagName) => {
-            if (setFlags & flagValue) {
+        var changedFlags = oldFlags ^ newFlags;
+        var setFlags_1 = newFlags & changedFlags;
+        var clearedFlags_1 = oldFlags & changedFlags;
+        _.forEach(AccountFlags, function (flagValue, flagName) {
+            if (setFlags_1 & flagValue) {
                 settings[flagName] = true;
             }
-            else if (clearedFlags & flagValue) {
+            else if (clearedFlags_1 & flagValue) {
                 settings[flagName] = false;
             }
         });
@@ -39182,8 +39344,8 @@ function parseFlags(tx) {
     // enableTransactionIDTracking requires a special case because it
     // does not affect the Flags field; instead it adds/removes a field called
     // "AccountTxnID" to/from the account root.
-    const oldField = _.get(node.PreviousFields, 'AccountTxnID');
-    const newField = _.get(node.FinalFields, 'AccountTxnID');
+    var oldField = _.get(node.PreviousFields, 'AccountTxnID');
+    var newField = _.get(node.FinalFields, 'AccountTxnID');
     if (newField && !oldField) {
         settings.enableTransactionIDTracking = true;
     }
@@ -39193,7 +39355,7 @@ function parseFlags(tx) {
     return settings;
 }
 function parseSettings(tx) {
-    const txType = tx.TransactionType;
+    var txType = tx.TransactionType;
     assert(txType === 'AccountSet' || txType === 'SetRegularKey' ||
         txType === 'SignerListSet');
     return _.assign({}, parseFlags(tx), fields_1.default(tx));
@@ -39208,10 +39370,10 @@ exports.default = parseSettings;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const assert = __webpack_require__(2);
-const amount_1 = __webpack_require__(16);
-const utils_1 = __webpack_require__(12);
-const common_1 = __webpack_require__(0);
+var assert = __webpack_require__(2);
+var amount_1 = __webpack_require__(16);
+var utils_1 = __webpack_require__(12);
+var common_1 = __webpack_require__(0);
 function parseEscrowCreation(tx) {
     assert(tx.TransactionType === 'EscrowCreate');
     return common_1.removeUndefined({
@@ -39235,9 +39397,9 @@ exports.default = parseEscrowCreation;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const assert = __webpack_require__(2);
-const utils_1 = __webpack_require__(12);
-const common_1 = __webpack_require__(0);
+var assert = __webpack_require__(2);
+var utils_1 = __webpack_require__(12);
+var common_1 = __webpack_require__(0);
 function parseEscrowExecution(tx) {
     assert(tx.TransactionType === 'EscrowFinish');
     return common_1.removeUndefined({
@@ -39258,9 +39420,9 @@ exports.default = parseEscrowExecution;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const assert = __webpack_require__(2);
-const utils_1 = __webpack_require__(12);
-const common_1 = __webpack_require__(0);
+var assert = __webpack_require__(2);
+var utils_1 = __webpack_require__(12);
+var common_1 = __webpack_require__(0);
 function parseEscrowCancellation(tx) {
     assert(tx.TransactionType === 'EscrowCancel');
     return common_1.removeUndefined({
@@ -39279,10 +39441,10 @@ exports.default = parseEscrowCancellation;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const assert = __webpack_require__(2);
-const utils_1 = __webpack_require__(12);
-const common_1 = __webpack_require__(0);
-const amount_1 = __webpack_require__(16);
+var assert = __webpack_require__(2);
+var utils_1 = __webpack_require__(12);
+var common_1 = __webpack_require__(0);
+var amount_1 = __webpack_require__(16);
 function parsePaymentChannelCreate(tx) {
     assert(tx.TransactionType === 'PaymentChannelCreate');
     return common_1.removeUndefined({
@@ -39305,10 +39467,10 @@ exports.default = parsePaymentChannelCreate;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const assert = __webpack_require__(2);
-const utils_1 = __webpack_require__(12);
-const common_1 = __webpack_require__(0);
-const amount_1 = __webpack_require__(16);
+var assert = __webpack_require__(2);
+var utils_1 = __webpack_require__(12);
+var common_1 = __webpack_require__(0);
+var amount_1 = __webpack_require__(16);
 function parsePaymentChannelFund(tx) {
     assert(tx.TransactionType === 'PaymentChannelFund');
     return common_1.removeUndefined({
@@ -39327,10 +39489,10 @@ exports.default = parsePaymentChannelFund;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const assert = __webpack_require__(2);
-const common_1 = __webpack_require__(0);
-const amount_1 = __webpack_require__(16);
-const claimFlags = common_1.txFlags.PaymentChannelClaim;
+var assert = __webpack_require__(2);
+var common_1 = __webpack_require__(0);
+var amount_1 = __webpack_require__(16);
+var claimFlags = common_1.txFlags.PaymentChannelClaim;
 function parsePaymentChannelClaim(tx) {
     assert(tx.TransactionType === 'PaymentChannelClaim');
     return common_1.removeUndefined({
@@ -39353,10 +39515,10 @@ exports.default = parsePaymentChannelClaim;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const bignumber_js_1 = __webpack_require__(5);
-const common_1 = __webpack_require__(0);
+var bignumber_js_1 = __webpack_require__(5);
+var common_1 = __webpack_require__(0);
 function parseFeeUpdate(tx) {
-    const baseFeeDrops = (new bignumber_js_1.default(tx.BaseFee, 16)).toString();
+    var baseFeeDrops = (new bignumber_js_1.default(tx.BaseFee, 16)).toString();
     return {
         baseFeeCALL: common_1.dropsToCall(baseFeeDrops),
         referenceFeeUnits: tx.ReferenceFeeUnits,
@@ -39389,15 +39551,15 @@ exports.default = parseAmendment;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = __webpack_require__(1);
-const binary = __webpack_require__(26);
-const { computeTransactionHash } = __webpack_require__(43);
-const utils = __webpack_require__(17);
-const transaction_1 = __webpack_require__(49);
-const transaction_2 = __webpack_require__(72);
-const common_1 = __webpack_require__(0);
+var _ = __webpack_require__(1);
+var binary = __webpack_require__(26);
+var computeTransactionHash = __webpack_require__(43).computeTransactionHash;
+var utils = __webpack_require__(17);
+var transaction_1 = __webpack_require__(49);
+var transaction_2 = __webpack_require__(72);
+var common_1 = __webpack_require__(0);
 function parseBinaryTransaction(transaction) {
-    const tx = binary.decode(transaction.tx_blob);
+    var tx = binary.decode(transaction.tx_blob);
     tx.hash = computeTransactionHash(tx);
     tx.ledger_index = transaction.ledger_index;
     return {
@@ -39407,14 +39569,14 @@ function parseBinaryTransaction(transaction) {
     };
 }
 function parseAccountTxTransaction(tx) {
-    const _tx = tx.tx_blob ? parseBinaryTransaction(tx) : tx;
+    var _tx = tx.tx_blob ? parseBinaryTransaction(tx) : tx;
     return transaction_1.default(_.assign({}, _tx.tx, { meta: _tx.meta, validated: _tx.validated }));
 }
 function counterpartyFilter(filters, tx) {
     if (tx.address === filters.counterparty) {
         return true;
     }
-    const specification = tx.specification;
+    var specification = tx.specification;
     if (specification && ((specification.destination &&
         specification.destination.address === filters.counterparty) ||
         (specification.counterparty === filters.counterparty))) {
@@ -39449,14 +39611,14 @@ function formatPartialResponse(address, options, data) {
     return {
         marker: data.marker,
         results: data.transactions
-            .filter(tx => tx.validated)
+            .filter(function (tx) { return tx.validated; })
             .map(parseAccountTxTransaction)
             .filter(_.partial(transactionFilter, address, options))
             .filter(_.partial(orderFilter, options))
     };
 }
 function getAccountTx(connection, address, options, marker, limit) {
-    const request = {
+    var request = {
         command: 'account_tx',
         account: address,
         // -1 is equivalent to earliest available validated ledger
@@ -39468,10 +39630,12 @@ function getAccountTx(connection, address, options, marker, limit) {
         limit: utils.clamp(limit, 10, 400),
         marker: marker
     };
-    return connection.request(request).then(response => formatPartialResponse(address, options, response));
+    return connection.request(request).then(function (response) {
+        return formatPartialResponse(address, options, response);
+    });
 }
 function checkForLedgerGaps(connection, options, transactions) {
-    let { minLedgerVersion, maxLedgerVersion } = options;
+    var minLedgerVersion = options.minLedgerVersion, maxLedgerVersion = options.maxLedgerVersion;
     // if we reached the limit on number of transactions, then we can shrink
     // the required ledger range to only guarantee that there are no gaps in
     // the range of ledgers spanned by those transactions
@@ -39483,37 +39647,39 @@ function checkForLedgerGaps(connection, options, transactions) {
             minLedgerVersion = _.last(transactions).outcome.ledgerVersion;
         }
     }
-    return utils.hasCompleteLedgerRange(connection, minLedgerVersion, maxLedgerVersion).then(hasCompleteLedgerRange => {
+    return utils.hasCompleteLedgerRange(connection, minLedgerVersion, maxLedgerVersion).then(function (hasCompleteLedgerRange) {
         if (!hasCompleteLedgerRange) {
             throw new common_1.errors.MissingLedgerHistoryError();
         }
     });
 }
 function formatResponse(connection, options, transactions) {
-    const compare = options.earliestFirst ? utils.compareTransactions :
+    var compare = options.earliestFirst ? utils.compareTransactions :
         _.rearg(utils.compareTransactions, 1, 0);
-    const sortedTransactions = transactions.sort(compare);
-    return checkForLedgerGaps(connection, options, sortedTransactions).then(() => sortedTransactions);
+    var sortedTransactions = transactions.sort(compare);
+    return checkForLedgerGaps(connection, options, sortedTransactions).then(function () { return sortedTransactions; });
 }
 function getTransactionsInternal(connection, address, options) {
-    const getter = _.partial(getAccountTx, connection, address, options);
-    const format = _.partial(formatResponse, connection, options);
+    var getter = _.partial(getAccountTx, connection, address, options);
+    var format = _.partial(formatResponse, connection, options);
     // return utils.getRecursive(getter, options.limit).then(format)
     return utils.getRecursive(getter, options.limit, options.marker);
 }
-function getTransactions(address, options = {}) {
-    common_1.validate.getTransactions({ address, options });
-    const defaults = { maxLedgerVersion: -1 };
+function getTransactions(address, options) {
+    var _this = this;
+    if (options === void 0) { options = {}; }
+    common_1.validate.getTransactions({ address: address, options: options });
+    var defaults = { maxLedgerVersion: -1 };
     if (options.start) {
-        return transaction_2.default.call(this, options.start).then(tx => {
-            const ledgerVersion = tx.outcome.ledgerVersion;
-            const bound = options.earliestFirst ?
+        return transaction_2.default.call(this, options.start).then(function (tx) {
+            var ledgerVersion = tx.outcome.ledgerVersion;
+            var bound = options.earliestFirst ?
                 { minLedgerVersion: ledgerVersion } : { maxLedgerVersion: ledgerVersion };
-            const startOptions = _.assign({}, defaults, options, { startTx: tx }, bound);
-            return getTransactionsInternal(this.connection, address, startOptions);
+            var startOptions = _.assign({}, defaults, options, { startTx: tx }, bound);
+            return getTransactionsInternal(_this.connection, address, startOptions);
         });
     }
-    const newOptions = _.assign({}, defaults, options);
+    var newOptions = _.assign({}, defaults, options);
     return getTransactionsInternal(this.connection, address, newOptions);
 }
 exports.default = getTransactions;
@@ -39566,7 +39732,7 @@ var BN = __webpack_require__(28);
 var Decimal = __webpack_require__(75);
 var makeClass = __webpack_require__(4);var _require = 
 __webpack_require__(19);var SerializedType = _require.SerializedType;var _require2 = 
-__webpack_require__(9);var bytesToHex = _require2.bytesToHex;var _require3 = 
+__webpack_require__(10);var bytesToHex = _require2.bytesToHex;var _require3 = 
 __webpack_require__(54);var Currency = _require3.Currency;var _require4 = 
 __webpack_require__(50);var AccountID = _require4.AccountID;var _require5 = 
 __webpack_require__(76);var UInt64 = _require5.UInt64;
@@ -39769,7 +39935,7 @@ module.exports = {
 
 "use strict";
 var makeClass = __webpack_require__(4);var _require = 
-__webpack_require__(9);var parseBytes = _require.parseBytes;var _require2 = 
+__webpack_require__(10);var parseBytes = _require.parseBytes;var _require2 = 
 __webpack_require__(19);var SerializedType = _require2.SerializedType;
 
 var Blob = makeClass({ 
@@ -40067,7 +40233,7 @@ module.exports = {
 var assert = __webpack_require__(2);
 var makeClass = __webpack_require__(4);var _require = 
 __webpack_require__(27);var Field = _require.Field;var _require2 = 
-__webpack_require__(9);var slice = _require2.slice;var parseBytes = _require2.parseBytes;
+__webpack_require__(10);var slice = _require2.slice;var parseBytes = _require2.parseBytes;
 
 var BinaryParser = makeClass({ 
   BinaryParser: function BinaryParser(buf) {
@@ -40171,7 +40337,7 @@ module.exports = {
 
 var inherits = __webpack_require__(3)
 var HashBase = __webpack_require__(80)
-var Buffer = __webpack_require__(8).Buffer
+var Buffer = __webpack_require__(9).Buffer
 
 var ARRAY16 = new Array(16)
 
@@ -40549,7 +40715,7 @@ exports.sha512 = __webpack_require__(83)
 
 var inherits = __webpack_require__(3)
 var Hash = __webpack_require__(29)
-var Buffer = __webpack_require__(8).Buffer
+var Buffer = __webpack_require__(9).Buffer
 
 var K = [
   0x5a827999, 0x6ed9eba1, 0x8f1bbcdc | 0, 0xca62c1d6 | 0
@@ -40650,7 +40816,7 @@ module.exports = Sha
 
 var inherits = __webpack_require__(3)
 var Hash = __webpack_require__(29)
-var Buffer = __webpack_require__(8).Buffer
+var Buffer = __webpack_require__(9).Buffer
 
 var K = [
   0x5a827999, 0x6ed9eba1, 0x8f1bbcdc | 0, 0xca62c1d6 | 0
@@ -40755,7 +40921,7 @@ module.exports = Sha1
 var inherits = __webpack_require__(3)
 var Sha256 = __webpack_require__(82)
 var Hash = __webpack_require__(29)
-var Buffer = __webpack_require__(8).Buffer
+var Buffer = __webpack_require__(9).Buffer
 
 var W = new Array(64)
 
@@ -40806,7 +40972,7 @@ module.exports = Sha224
 var inherits = __webpack_require__(3)
 var SHA512 = __webpack_require__(83)
 var Hash = __webpack_require__(29)
-var Buffer = __webpack_require__(8).Buffer
+var Buffer = __webpack_require__(9).Buffer
 
 var W = new Array(160)
 
@@ -40866,7 +41032,7 @@ module.exports = Sha384
 /* 304 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var Buffer = __webpack_require__(8).Buffer
+var Buffer = __webpack_require__(9).Buffer
 var Transform = __webpack_require__(81).Transform
 var StringDecoder = __webpack_require__(48).StringDecoder
 var inherits = __webpack_require__(3)
@@ -41050,7 +41216,7 @@ module.exports = {
 
 "use strict";
 var Decimal = __webpack_require__(75);var _require = 
-__webpack_require__(9);var bytesToHex = _require.bytesToHex;var slice = _require.slice;var parseBytes = _require.parseBytes;var _require2 = 
+__webpack_require__(10);var bytesToHex = _require.bytesToHex;var slice = _require.slice;var parseBytes = _require.parseBytes;var _require2 = 
 __webpack_require__(23);var UInt64 = _require2.UInt64;
 var BN = __webpack_require__(28);
 
@@ -41178,13 +41344,13 @@ module.exports = {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = __webpack_require__(1);
-const utils = __webpack_require__(17);
-const common_1 = __webpack_require__(0);
-const account_trustline_1 = __webpack_require__(310);
+var _ = __webpack_require__(1);
+var utils = __webpack_require__(17);
+var common_1 = __webpack_require__(0);
+var account_trustline_1 = __webpack_require__(310);
 function hexToStringWide(h) {
-    let a = [];
-    let i = 0;
+    var a = [];
+    var i = 0;
     if (h.length % 4) {
         a.push(String.fromCharCode(parseInt(h.substring(0, 4), 16)));
         i = 4;
@@ -41198,7 +41364,7 @@ function currencyFilter(currency, trustline) {
     return currency === null || trustline.specification.currency === currency;
 }
 function formatResponse(options, data) {
-    const response = { results: data.lines.map(account_trustline_1.default)
+    var response = { results: data.lines.map(account_trustline_1.default)
             .filter(_.partial(currencyFilter, options.currency || null)) };
     if (data.marker) {
         response.marker = data.marker;
@@ -41212,7 +41378,7 @@ function formatResponse(options, data) {
     return response;
 }
 function getAccountLines(connection, address, ledgerVersion, options, marker, limit) {
-    const request = {
+    var request = {
         command: 'account_lines',
         account: address,
         ledger_index: ledgerVersion,
@@ -41222,10 +41388,12 @@ function getAccountLines(connection, address, ledgerVersion, options, marker, li
     };
     return connection.request(request).then(_.partial(formatResponse, options));
 }
-function getTrustlines(address, options = {}) {
-    common_1.validate.getTrustlines({ address, options });
-    return this.getLedgerVersion().then(ledgerVersion => {
-        const getter = _.partial(getAccountLines, this.connection, address, options.ledgerVersion || ledgerVersion, options);
+function getTrustlines(address, options) {
+    var _this = this;
+    if (options === void 0) { options = {}; }
+    common_1.validate.getTrustlines({ address: address, options: options });
+    return this.getLedgerVersion().then(function (ledgerVersion) {
+        var getter = _.partial(getAccountLines, _this.connection, address, options.ledgerVersion || ledgerVersion, options);
         return utils.getRecursive(getter, options.limit);
     });
 }
@@ -41239,11 +41407,11 @@ exports.default = getTrustlines;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const utils_1 = __webpack_require__(12);
-const common_1 = __webpack_require__(0);
+var utils_1 = __webpack_require__(12);
+var common_1 = __webpack_require__(0);
 function hexToStringWide(h) {
-    let a = [];
-    let i = 0;
+    var a = [];
+    var i = 0;
     if (h.length % 4) {
         a.push(String.fromCharCode(parseInt(h.substring(0, 4), 16)));
         i = 4;
@@ -41254,7 +41422,7 @@ function hexToStringWide(h) {
     return a.join('');
 }
 function parseAccountTrustline(trustline) {
-    const specification = common_1.removeUndefined({
+    var specification = common_1.removeUndefined({
         limit: trustline.limit,
         currency: trustline.currency,
         counterparty: trustline.account,
@@ -41264,16 +41432,16 @@ function parseAccountTrustline(trustline) {
         frozen: trustline.freeze || undefined,
         authorized: trustline.authorized || undefined
     });
-    const counterparty = common_1.removeUndefined({
+    var counterparty = common_1.removeUndefined({
         limit: trustline.limit_peer,
         callingDisabled: trustline.no_call_peer || undefined,
         frozen: trustline.freeze_peer || undefined,
         authorized: trustline.peer_authorized || undefined
     });
-    const state = {
+    var state = {
         balance: trustline.balance
     };
-    const trusts = { specification, counterparty, state };
+    var trusts = { specification: specification, counterparty: counterparty, state: state };
     if (trustline.NickName) {
         trusts.nickName = {
             nick: hexToStringWide(hexToStringWide(trustline.NickName))
@@ -41291,8 +41459,8 @@ exports.default = parseAccountTrustline;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const utils = __webpack_require__(17);
-const common_1 = __webpack_require__(0);
+var utils = __webpack_require__(17);
+var common_1 = __webpack_require__(0);
 function getTrustlineBalanceAmount(trustline) {
     return {
         currency: trustline.specification.currency,
@@ -41301,17 +41469,17 @@ function getTrustlineBalanceAmount(trustline) {
     };
 }
 function formatBalances(options, balances) {
-    const result = balances.trustlines.results.map(getTrustlineBalanceAmount);
+    var result = balances.trustlines.results.map(getTrustlineBalanceAmount);
     if (!(options.counterparty ||
         (options.currency && options.currency !== 'CALL'))) {
-        const callBalance = {
+        var callBalance = {
             currency: 'CALL',
             value: balances.call
         };
         result.unshift(callBalance);
     }
     if (options.limit && result.length > options.limit) {
-        const toRemove = result.length - options.limit;
+        var toRemove = result.length - options.limit;
         result.splice(-toRemove, toRemove);
     }
     return result;
@@ -41322,12 +41490,18 @@ function getLedgerVersionHelper(connection, optionValue) {
     }
     return connection.getLedgerVersion();
 }
-function getBalances(address, options = {}) {
-    common_1.validate.getTrustlines({ address, options });
+function getBalances(address, options) {
+    var _this = this;
+    if (options === void 0) { options = {}; }
+    common_1.validate.getTrustlines({ address: address, options: options });
     return Promise.all([
-        getLedgerVersionHelper(this.connection, options.ledgerVersion).then(ledgerVersion => utils.getCALLBalance(this.connection, address, ledgerVersion)),
+        getLedgerVersionHelper(this.connection, options.ledgerVersion).then(function (ledgerVersion) {
+            return utils.getCALLBalance(_this.connection, address, ledgerVersion);
+        }),
         this.getTrustlines(address, options)
-    ]).then(results => formatBalances(options, { call: results[0], trustlines: results[1] }));
+    ]).then(function (results) {
+        return formatBalances(options, { call: results[0], trustlines: results[1] });
+    });
 }
 exports.default = getBalances;
 
@@ -41339,43 +41513,45 @@ exports.default = getBalances;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = __webpack_require__(1);
-const utils = __webpack_require__(17);
-const common_1 = __webpack_require__(0);
+var _ = __webpack_require__(1);
+var utils = __webpack_require__(17);
+var common_1 = __webpack_require__(0);
 function formatBalanceSheet(balanceSheet) {
-    const result = {};
+    var result = {};
     if (!_.isUndefined(balanceSheet.balances)) {
         result.balances = [];
-        _.forEach(balanceSheet.balances, (balances, counterparty) => {
-            _.forEach(balances, balance => {
-                result.balances.push(Object.assign({ counterparty }, balance));
+        _.forEach(balanceSheet.balances, function (balances, counterparty) {
+            _.forEach(balances, function (balance) {
+                result.balances.push(Object.assign({ counterparty: counterparty }, balance));
             });
         });
     }
     if (!_.isUndefined(balanceSheet.assets)) {
         result.assets = [];
-        _.forEach(balanceSheet.assets, (assets, counterparty) => {
-            _.forEach(assets, balance => {
-                result.assets.push(Object.assign({ counterparty }, balance));
+        _.forEach(balanceSheet.assets, function (assets, counterparty) {
+            _.forEach(assets, function (balance) {
+                result.assets.push(Object.assign({ counterparty: counterparty }, balance));
             });
         });
     }
     if (!_.isUndefined(balanceSheet.obligations)) {
-        result.obligations = _.map(balanceSheet.obligations, (value, currency) => ({ currency, value }));
+        result.obligations = _.map(balanceSheet.obligations, function (value, currency) { return ({ currency: currency, value: value }); });
     }
     return result;
 }
-function getBalanceSheet(address, options = {}) {
-    common_1.validate.getBalanceSheet({ address, options });
-    return utils.ensureLedgerVersion.call(this, options).then(_options => {
-        const request = {
+function getBalanceSheet(address, options) {
+    var _this = this;
+    if (options === void 0) { options = {}; }
+    common_1.validate.getBalanceSheet({ address: address, options: options });
+    return utils.ensureLedgerVersion.call(this, options).then(function (_options) {
+        var request = {
             command: 'gateway_balances',
             account: address,
             strict: true,
             hotwallet: _options.excludeAddresses,
             ledger_index: _options.ledgerVersion
         };
-        return this.connection.request(request).then(formatBalanceSheet);
+        return _this.connection.request(request).then(formatBalanceSheet);
     });
 }
 exports.default = getBalanceSheet;
@@ -41388,13 +41564,13 @@ exports.default = getBalanceSheet;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = __webpack_require__(1);
-const bignumber_js_1 = __webpack_require__(5);
-const utils_1 = __webpack_require__(17);
-const common_1 = __webpack_require__(0);
-const pathfind_1 = __webpack_require__(314);
-const NotFoundError = common_1.errors.NotFoundError;
-const ValidationError = common_1.errors.ValidationError;
+var _ = __webpack_require__(1);
+var bignumber_js_1 = __webpack_require__(5);
+var utils_1 = __webpack_require__(17);
+var common_1 = __webpack_require__(0);
+var pathfind_1 = __webpack_require__(314);
+var NotFoundError = common_1.errors.NotFoundError;
+var ValidationError = common_1.errors.ValidationError;
 function addParams(request, result) {
     return _.defaults(_.assign({}, result, {
         source_account: request.source_account,
@@ -41402,8 +41578,8 @@ function addParams(request, result) {
     }), { destination_amount: request.destination_amount });
 }
 function requestPathFind(connection, pathfind) {
-    const destinationAmount = _.assign({ value: '-1' }, pathfind.destination.amount);
-    const request = {
+    var destinationAmount = _.assign({ value: '-1' }, pathfind.destination.amount);
+    var request = {
         command: 'call_path_find',
         source_account: pathfind.source.address,
         destination_account: pathfind.destination.address,
@@ -41414,7 +41590,7 @@ function requestPathFind(connection, pathfind) {
         request.destination_amount.issuer = request.destination_account;
     }
     if (pathfind.source.currencies && pathfind.source.currencies.length > 0) {
-        request.source_currencies = pathfind.source.currencies.map(amount => utils_1.renameCounterpartyToIssuer(amount));
+        request.source_currencies = pathfind.source.currencies.map(function (amount) { return utils_1.renameCounterpartyToIssuer(amount); });
     }
     if (pathfind.source.amount) {
         if (pathfind.destination.amount.value !== undefined) {
@@ -41426,11 +41602,11 @@ function requestPathFind(connection, pathfind) {
             request.send_max.issuer = pathfind.source.address;
         }
     }
-    return connection.request(request).then(paths => addParams(request, paths));
+    return connection.request(request).then(function (paths) { return addParams(request, paths); });
 }
 function addDirectCallPath(paths, callBalance) {
     // Add CALL "path" only if the source acct has enough CALL to make the payment
-    const destinationAmount = paths.destination_amount;
+    var destinationAmount = paths.destination_amount;
     // @ts-ignore: destinationAmount can be a currency amount object! Fix!
     if ((new bignumber_js_1.default(callBalance)).greaterThanOrEqualTo(destinationAmount)) {
         paths.alternatives.unshift({
@@ -41449,16 +41625,18 @@ function conditionallyAddDirectCALLPath(connection, address, paths) {
         || !_.includes(paths.destination_currencies, 'CALL')) {
         return Promise.resolve(paths);
     }
-    return utils_1.getCALLBalance(connection, address, undefined).then(callBalance => addDirectCallPath(paths, callBalance));
+    return utils_1.getCALLBalance(connection, address, undefined).then(function (callBalance) { return addDirectCallPath(paths, callBalance); });
 }
 function filterSourceFundsLowPaths(pathfind, paths) {
     if (pathfind.source.amount &&
         pathfind.destination.amount.value === undefined && paths.alternatives) {
-        paths.alternatives = _.filter(paths.alternatives, alt => !!alt.source_amount &&
-            !!pathfind.source.amount &&
-            // TODO: Returns false when alt.source_amount is a string. Fix?
-            typeof alt.source_amount !== 'string' &&
-            new bignumber_js_1.default(alt.source_amount.value).eq(pathfind.source.amount.value));
+        paths.alternatives = _.filter(paths.alternatives, function (alt) {
+            return !!alt.source_amount &&
+                !!pathfind.source.amount &&
+                // TODO: Returns false when alt.source_amount is a string. Fix?
+                typeof alt.source_amount !== 'string' &&
+                new bignumber_js_1.default(alt.source_amount.value).eq(pathfind.source.amount.value);
+        });
     }
     return paths;
 }
@@ -41488,11 +41666,14 @@ function formatResponse(pathfind, paths) {
     }
 }
 function getPaths(pathfind) {
-    common_1.validate.getPaths({ pathfind });
-    const address = pathfind.source.address;
-    return requestPathFind(this.connection, pathfind).then(paths => conditionallyAddDirectCALLPath(this.connection, address, paths))
-        .then(paths => filterSourceFundsLowPaths(pathfind, paths))
-        .then(paths => formatResponse(pathfind, paths));
+    var _this = this;
+    common_1.validate.getPaths({ pathfind: pathfind });
+    var address = pathfind.source.address;
+    return requestPathFind(this.connection, pathfind).then(function (paths) {
+        return conditionallyAddDirectCALLPath(_this.connection, address, paths);
+    })
+        .then(function (paths) { return filterSourceFundsLowPaths(pathfind, paths); })
+        .then(function (paths) { return formatResponse(pathfind, paths); });
 }
 exports.default = getPaths;
 
@@ -41504,24 +41685,26 @@ exports.default = getPaths;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = __webpack_require__(1);
-const amount_1 = __webpack_require__(16);
+var _ = __webpack_require__(1);
+var amount_1 = __webpack_require__(16);
 function parsePaths(paths) {
-    return paths.map(steps => steps.map(step => _.omit(step, ['type', 'type_hex'])));
+    return paths.map(function (steps) { return steps.map(function (step) {
+        return _.omit(step, ['type', 'type_hex']);
+    }); });
 }
 function removeAnyCounterpartyEncoding(address, amount) {
     return amount.counterparty === address ?
         _.omit(amount, 'counterparty') : amount;
 }
 function createAdjustment(address, adjustmentWithoutAddress) {
-    const amountKey = _.keys(adjustmentWithoutAddress)[0];
-    const amount = adjustmentWithoutAddress[amountKey];
+    var amountKey = _.keys(adjustmentWithoutAddress)[0];
+    var amount = adjustmentWithoutAddress[amountKey];
     return _.set({ address: address }, amountKey, removeAnyCounterpartyEncoding(address, amount));
 }
 function parseAlternative(sourceAddress, destinationAddress, destinationAmount, alternative) {
     // we use "maxAmount"/"minAmount" here so that the result can be passed
     // directly to preparePayment
-    const amounts = (alternative.destination_amount !== undefined) ?
+    var amounts = (alternative.destination_amount !== undefined) ?
         { source: { amount: amount_1.default(alternative.source_amount) },
             destination: { minAmount: amount_1.default(alternative.destination_amount) } } :
         { source: { maxAmount: amount_1.default(alternative.source_amount) },
@@ -41533,10 +41716,12 @@ function parseAlternative(sourceAddress, destinationAddress, destinationAmount, 
     };
 }
 function parsePathfind(pathfindResult) {
-    const sourceAddress = pathfindResult.source_account;
-    const destinationAddress = pathfindResult.destination_account;
-    const destinationAmount = pathfindResult.destination_amount;
-    return pathfindResult.alternatives.map(alt => parseAlternative(sourceAddress, destinationAddress, destinationAmount, alt));
+    var sourceAddress = pathfindResult.source_account;
+    var destinationAddress = pathfindResult.destination_account;
+    var destinationAmount = pathfindResult.destination_amount;
+    return pathfindResult.alternatives.map(function (alt) {
+        return parseAlternative(sourceAddress, destinationAddress, destinationAmount, alt);
+    });
 }
 exports.default = parsePathfind;
 
@@ -41548,10 +41733,10 @@ exports.default = parsePathfind;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = __webpack_require__(1);
-const utils = __webpack_require__(17);
-const common_1 = __webpack_require__(0);
-const account_order_1 = __webpack_require__(316);
+var _ = __webpack_require__(1);
+var utils = __webpack_require__(17);
+var common_1 = __webpack_require__(0);
+var account_order_1 = __webpack_require__(316);
 function requestAccountOffers(connection, address, ledgerVersion, marker, limit) {
     return connection.request({
         command: 'account_offers',
@@ -41559,16 +41744,18 @@ function requestAccountOffers(connection, address, ledgerVersion, marker, limit)
         marker: marker,
         limit: utils.clamp(limit, 10, 400),
         ledger_index: ledgerVersion
-    }).then(data => ({
+    }).then(function (data) { return ({
         marker: data.marker,
         results: data.offers.map(_.partial(account_order_1.default, address))
-    }));
+    }); });
 }
-function getOrders(address, options = {}) {
-    common_1.validate.getOrders({ address, options });
-    return utils.ensureLedgerVersion.call(this, options).then(_options => {
-        const getter = _.partial(requestAccountOffers, this.connection, address, _options.ledgerVersion);
-        return utils.getRecursive(getter, _options.limit).then(orders.results, _.sortBy(orders, order => order.properties.sequence));
+function getOrders(address, options) {
+    var _this = this;
+    if (options === void 0) { options = {}; }
+    common_1.validate.getOrders({ address: address, options: options });
+    return utils.ensureLedgerVersion.call(this, options).then(function (_options) {
+        var getter = _.partial(requestAccountOffers, _this.connection, address, _options.ledgerVersion);
+        return utils.getRecursive(getter, _options.limit).then(orders.results, _.sortBy(orders, function (order) { return order.properties.sequence; }));
     });
 }
 exports.default = getOrders;
@@ -41581,39 +41768,39 @@ exports.default = getOrders;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const bignumber_js_1 = __webpack_require__(5);
-const amount_1 = __webpack_require__(16);
-const utils_1 = __webpack_require__(12);
-const common_1 = __webpack_require__(0);
-const flags_1 = __webpack_require__(88);
+var bignumber_js_1 = __webpack_require__(5);
+var amount_1 = __webpack_require__(16);
+var utils_1 = __webpack_require__(12);
+var common_1 = __webpack_require__(0);
+var flags_1 = __webpack_require__(88);
 function computeQuality(takerGets, takerPays) {
-    const quotient = new bignumber_js_1.default(takerPays.value).dividedBy(takerGets.value);
+    var quotient = new bignumber_js_1.default(takerPays.value).dividedBy(takerGets.value);
     return quotient.toDigits(16, bignumber_js_1.default.ROUND_HALF_UP).toString();
 }
 function parseAccountOrder(address, order) {
-    const direction = (order.flags & flags_1.orderFlags.Sell) === 0 ? 'buy' : 'sell';
-    const takerGetsAmount = amount_1.default(order.taker_gets);
-    const takerPaysAmount = amount_1.default(order.taker_pays);
-    const quantity = (direction === 'buy') ? takerPaysAmount : takerGetsAmount;
-    const totalPrice = (direction === 'buy') ? takerGetsAmount : takerPaysAmount;
+    var direction = (order.flags & flags_1.orderFlags.Sell) === 0 ? 'buy' : 'sell';
+    var takerGetsAmount = amount_1.default(order.taker_gets);
+    var takerPaysAmount = amount_1.default(order.taker_pays);
+    var quantity = (direction === 'buy') ? takerPaysAmount : takerGetsAmount;
+    var totalPrice = (direction === 'buy') ? takerGetsAmount : takerPaysAmount;
     // note: immediateOrCancel and fillOrKill orders cannot enter the order book
     // so we can omit those flags here
-    const specification = common_1.removeUndefined({
+    var specification = common_1.removeUndefined({
         direction: direction,
         quantity: quantity,
         totalPrice: totalPrice,
         passive: ((order.flags & flags_1.orderFlags.Passive) !== 0) || undefined,
         expirationTime: utils_1.parseTimestamp(order.expiration)
     });
-    const makerExchangeRate = order.quality ?
+    var makerExchangeRate = order.quality ?
         utils_1.adjustQualityForCALL(order.quality.toString(), takerGetsAmount.currency, takerPaysAmount.currency) :
         computeQuality(takerGetsAmount, takerPaysAmount);
-    const properties = {
+    var properties = {
         maker: address,
         sequence: order.seq,
         makerExchangeRate: makerExchangeRate
     };
-    return { specification, properties };
+    return { specification: specification, properties: properties };
 }
 exports.default = parseAccountOrder;
 
@@ -41625,14 +41812,14 @@ exports.default = parseAccountOrder;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = __webpack_require__(1);
-const utils = __webpack_require__(17);
-const orderbook_order_1 = __webpack_require__(318);
-const common_1 = __webpack_require__(0);
+var _ = __webpack_require__(1);
+var utils = __webpack_require__(17);
+var orderbook_order_1 = __webpack_require__(318);
+var common_1 = __webpack_require__(0);
 // account is to specify a "perspective", which affects which unfunded offers
 // are returned
 function getBookOffers(connection, account, ledgerVersion, limit, takerGets, takerPays) {
-    const orderData = utils.renameCounterpartyToIssuerInOrder({
+    var orderData = utils.renameCounterpartyToIssuerInOrder({
         taker_gets: takerGets,
         taker_pays: takerPays
     });
@@ -41643,7 +41830,7 @@ function getBookOffers(connection, account, ledgerVersion, limit, takerGets, tak
         ledger_index: ledgerVersion || 'validated',
         limit: limit,
         taker: account
-    }).then(data => data.offers);
+    }).then(function (data) { return data.offers; });
 }
 function isSameIssue(a, b) {
     return a.currency === b.currency && a.counterparty === b.counterparty;
@@ -41652,17 +41839,17 @@ function directionFilter(direction, order) {
     return order.specification.direction === direction;
 }
 function flipOrder(order) {
-    const specification = order.specification;
-    const flippedSpecification = {
+    var specification = order.specification;
+    var flippedSpecification = {
         quantity: specification.totalPrice,
         totalPrice: specification.quantity,
         direction: specification.direction === 'buy' ? 'sell' : 'buy'
     };
-    const newSpecification = _.merge({}, specification, flippedSpecification);
+    var newSpecification = _.merge({}, specification, flippedSpecification);
     return _.merge({}, order, { specification: newSpecification });
 }
 function alignOrder(base, order) {
-    const quantity = order.specification.quantity;
+    var quantity = order.specification.quantity;
     return isSameIssue(quantity, base) ? order : flipOrder(order);
 }
 function formatBidsAndAsks(orderbook, offers) {
@@ -41676,18 +41863,21 @@ function formatBidsAndAsks(orderbook, offers) {
     // for asks: lowest quality => lowest totalPrice/quantity => lowest price
     // for both bids and asks, lowest quality is closest to mid-market
     // we sort the orders so that earlier orders are closer to mid-market
-    const orders = _.sortBy(offers, 'quality').map(orderbook_order_1.default);
-    const alignedOrders = orders.map(_.partial(alignOrder, orderbook.base));
-    const bids = alignedOrders.filter(_.partial(directionFilter, 'buy'));
-    const asks = alignedOrders.filter(_.partial(directionFilter, 'sell'));
-    return { bids, asks };
+    var orders = _.sortBy(offers, 'quality').map(orderbook_order_1.default);
+    var alignedOrders = orders.map(_.partial(alignOrder, orderbook.base));
+    var bids = alignedOrders.filter(_.partial(directionFilter, 'buy'));
+    var asks = alignedOrders.filter(_.partial(directionFilter, 'sell'));
+    return { bids: bids, asks: asks };
 }
-function getOrderbook(address, orderbook, options = {}) {
-    common_1.validate.getOrderbook({ address, orderbook, options });
-    const getter = _.partial(getBookOffers, this.connection, address, options.ledgerVersion, options.limit);
-    const getOffers = _.partial(getter, orderbook.base, orderbook.counter);
-    const getReverseOffers = _.partial(getter, orderbook.counter, orderbook.base);
-    return Promise.all([getOffers(), getReverseOffers()]).then(data => formatBidsAndAsks(orderbook, _.flatten(data)));
+function getOrderbook(address, orderbook, options) {
+    if (options === void 0) { options = {}; }
+    common_1.validate.getOrderbook({ address: address, orderbook: orderbook, options: options });
+    var getter = _.partial(getBookOffers, this.connection, address, options.ledgerVersion, options.limit);
+    var getOffers = _.partial(getter, orderbook.base, orderbook.counter);
+    var getReverseOffers = _.partial(getter, orderbook.counter, orderbook.base);
+    return Promise.all([getOffers(), getReverseOffers()]).then(function (data) {
+        return formatBidsAndAsks(orderbook, _.flatten(data));
+    });
 }
 exports.default = getOrderbook;
 
@@ -41699,41 +41889,41 @@ exports.default = getOrderbook;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = __webpack_require__(1);
-const utils_1 = __webpack_require__(12);
-const common_1 = __webpack_require__(0);
-const flags_1 = __webpack_require__(88);
-const amount_1 = __webpack_require__(16);
+var _ = __webpack_require__(1);
+var utils_1 = __webpack_require__(12);
+var common_1 = __webpack_require__(0);
+var flags_1 = __webpack_require__(88);
+var amount_1 = __webpack_require__(16);
 function parseOrderbookOrder(order) {
-    const direction = (order.Flags & flags_1.orderFlags.Sell) === 0 ? 'buy' : 'sell';
-    const takerGetsAmount = amount_1.default(order.TakerGets);
-    const takerPaysAmount = amount_1.default(order.TakerPays);
-    const quantity = (direction === 'buy') ? takerPaysAmount : takerGetsAmount;
-    const totalPrice = (direction === 'buy') ? takerGetsAmount : takerPaysAmount;
+    var direction = (order.Flags & flags_1.orderFlags.Sell) === 0 ? 'buy' : 'sell';
+    var takerGetsAmount = amount_1.default(order.TakerGets);
+    var takerPaysAmount = amount_1.default(order.TakerPays);
+    var quantity = (direction === 'buy') ? takerPaysAmount : takerGetsAmount;
+    var totalPrice = (direction === 'buy') ? takerGetsAmount : takerPaysAmount;
     // note: immediateOrCancel and fillOrKill orders cannot enter the order book
     // so we can omit those flags here
-    const specification = common_1.removeUndefined({
+    var specification = common_1.removeUndefined({
         direction: direction,
         quantity: quantity,
         totalPrice: totalPrice,
         passive: ((order.Flags & flags_1.orderFlags.Passive) !== 0) || undefined,
         expirationTime: utils_1.parseTimestamp(order.Expiration)
     });
-    const properties = {
+    var properties = {
         maker: order.Account,
         sequence: order.Sequence,
         makerExchangeRate: utils_1.adjustQualityForCALL(order.quality, takerGetsAmount.currency, takerPaysAmount.currency)
     };
-    const takerGetsFunded = order.taker_gets_funded ?
+    var takerGetsFunded = order.taker_gets_funded ?
         amount_1.default(order.taker_gets_funded) : undefined;
-    const takerPaysFunded = order.taker_pays_funded ?
+    var takerPaysFunded = order.taker_pays_funded ?
         amount_1.default(order.taker_pays_funded) : undefined;
-    const available = common_1.removeUndefined({
+    var available = common_1.removeUndefined({
         fundedAmount: takerGetsFunded,
         priceOfFundedAmount: takerPaysFunded
     });
-    const state = _.isEmpty(available) ? undefined : available;
-    return common_1.removeUndefined({ specification, properties, state });
+    var state = _.isEmpty(available) ? undefined : available;
+    return common_1.removeUndefined({ specification: specification, properties: properties, state: state });
 }
 exports.default = parseOrderbookOrder;
 
@@ -41745,13 +41935,13 @@ exports.default = parseOrderbookOrder;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = __webpack_require__(1);
-const fields_1 = __webpack_require__(74);
-const common_1 = __webpack_require__(0);
-const AccountFlags = common_1.constants.AccountFlags;
+var _ = __webpack_require__(1);
+var fields_1 = __webpack_require__(74);
+var common_1 = __webpack_require__(0);
+var AccountFlags = common_1.constants.AccountFlags;
 function parseFlags(value) {
-    const settings = {};
-    for (const flagName in AccountFlags) {
+    var settings = {};
+    for (var flagName in AccountFlags) {
         if (value & AccountFlags[flagName]) {
             settings[flagName] = true;
         }
@@ -41759,14 +41949,15 @@ function parseFlags(value) {
     return settings;
 }
 function formatSettings(response) {
-    const data = response.account_data;
-    const parsedFlags = parseFlags(data.Flags);
-    const parsedFields = fields_1.default(data);
+    var data = response.account_data;
+    var parsedFlags = parseFlags(data.Flags);
+    var parsedFields = fields_1.default(data);
     return _.assign({}, parsedFlags, parsedFields);
 }
-function getSettings(address, options = {}) {
-    common_1.validate.getSettings({ address, options });
-    const request = {
+function getSettings(address, options) {
+    if (options === void 0) { options = {}; }
+    common_1.validate.getSettings({ address: address, options: options });
+    var request = {
         command: 'account_info',
         account: address,
         ledger_index: options.ledgerVersion || 'validated',
@@ -41784,10 +41975,10 @@ exports.default = getSettings;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const common_1 = __webpack_require__(0);
+var common_1 = __webpack_require__(0);
 function hexToStringWide(h) {
-    let a = [];
-    let i = 0;
+    var a = [];
+    var i = 0;
     if (h.length % 4) {
         a.push(String.fromCharCode(parseInt(h.substring(0, 4), 16)));
         i = 4;
@@ -41798,8 +41989,8 @@ function hexToStringWide(h) {
     return a.join('');
 }
 function formatAccountInfo(response) {
-    const data = response.account_data;
-    const obj = {
+    var data = response.account_data;
+    var obj = {
         sequence: data.Sequence,
         callBalance: common_1.dropsToCall(data.Balance),
         ownerCount: data.OwnerCount,
@@ -41811,9 +42002,10 @@ function formatAccountInfo(response) {
         obj.nickName = hexToStringWide(hexToStringWide(data.NickName));
     return common_1.removeUndefined(obj);
 }
-function getAccountInfo(address, options = {}) {
-    common_1.validate.getAccountInfo({ address, options });
-    const request = {
+function getAccountInfo(address, options) {
+    if (options === void 0) { options = {}; }
+    common_1.validate.getAccountInfo({ address: address, options: options });
+    var request = {
         command: 'account_info',
         account: address,
         ledger_index: options.ledgerVersion || 'validated'
@@ -41830,7 +42022,8 @@ exports.default = getAccountInfo;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-function getAccountInfoByNick(nick, options = {}) {
+function getAccountByName(name, options) {
+    if (options === void 0) { options = {}; }
     function stringToHexWide(s) {
         var result = '';
         for (var i = 0; i < s.length; i++) {
@@ -41850,14 +42043,14 @@ function getAccountInfoByNick(nick, options = {}) {
         }
         return result;
     }
-    const request = {
+    var request = {
         command: 'nick_search',
-        NickName: stringToHexWide(stringToHexWide(nick)).toUpperCase(),
+        NickName: stringToHexWide(stringToHexWide(name)).toUpperCase(),
         ledger_index: options.ledgerVersion || 'validated'
     };
     return this.connection.request(request);
 }
-exports.default = getAccountInfoByNick;
+exports.default = getAccountByName;
 
 
 /***/ }),
@@ -41868,8 +42061,8 @@ exports.default = getAccountInfoByNick;
 
 Object.defineProperty(exports, "__esModule", { value: true });
 function hexToStringWide(h) {
-    let a = [];
-    let i = 0;
+    var a = [];
+    var i = 0;
     if (h.length % 4) {
         a.push(String.fromCharCode(parseInt(h.substring(0, 4), 16)));
         i = 4;
@@ -41880,7 +42073,7 @@ function hexToStringWide(h) {
     return a.join('');
 }
 function getAccountIssues(address) {
-    const request = {
+    var request = {
         command: 'account_issues',
         account: address,
     };
@@ -41902,9 +42095,40 @@ exports.default = getAccountIssues;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const payment_channel_1 = __webpack_require__(324);
-const common_1 = __webpack_require__(0);
-const NotFoundError = common_1.errors.NotFoundError;
+function hexToStringWide(h) {
+    var a = [];
+    var i = 0;
+    if (h.length % 4) {
+        a.push(String.fromCharCode(parseInt(h.substring(0, 4), 16)));
+        i = 4;
+    }
+    for (; i < h.length; i += 4) {
+        a.push(String.fromCharCode(parseInt(h.substring(i, i + 4), 16)));
+    }
+    return a.join('');
+}
+function getAccountInvoices(address) {
+    var request = {
+        command: 'account_invoices',
+        account: address,
+    };
+    return this.connection.request(request).then(function (response) {
+        return response;
+    });
+}
+exports.default = getAccountInvoices;
+
+
+/***/ }),
+/* 324 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+var payment_channel_1 = __webpack_require__(325);
+var common_1 = __webpack_require__(0);
+var NotFoundError = common_1.errors.NotFoundError;
 function formatResponse(response) {
     if (response.node !== undefined &&
         response.node.LedgerEntryType === 'PayChannel') {
@@ -41915,8 +42139,8 @@ function formatResponse(response) {
     }
 }
 function getPaymentChannel(id) {
-    common_1.validate.getPaymentChannel({ id });
-    const request = {
+    common_1.validate.getPaymentChannel({ id: id });
+    var request = {
         command: 'ledger_entry',
         index: id,
         binary: false,
@@ -41928,14 +42152,14 @@ exports.default = getPaymentChannel;
 
 
 /***/ }),
-/* 324 */
+/* 325 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const utils_1 = __webpack_require__(12);
-const common_1 = __webpack_require__(0);
+var utils_1 = __webpack_require__(12);
+var common_1 = __webpack_require__(0);
 function parsePaymentChannel(data) {
     return common_1.removeUndefined({
         account: data.Account,
@@ -41956,21 +42180,133 @@ exports.default = parsePaymentChannel;
 
 
 /***/ }),
-/* 325 */
+/* 326 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+/* WEBPACK VAR INJECTION */(function(Buffer) {
+Object.defineProperty(exports, "__esModule", { value: true });
+var _ = __webpack_require__(1);
+var assert = __webpack_require__(2);
+var bignumber_js_1 = __webpack_require__(5);
+var utils = __webpack_require__(8);
+var validate = utils.common.validate;
+var issuesetFlags = utils.common.txFlags.IssueSet;
+var ValidationError = utils.common.errors.ValidationError;
+var AccountFlagIndices = utils.common.constants.AccountFlagIndices;
+var AccountFields = utils.common.constants.AccountFields;
+// Emptry string passed to setting will clear it
+var CLEAR_SETTING = null;
+function setTransactionFlags(txJSON, values) {
+    var keys = Object.keys(values);
+    assert(keys.length === 1, 'ERROR: can only set one setting per transaction');
+    var flagName = keys[0];
+    var value = values[flagName];
+    var index = AccountFlagIndices[flagName];
+    if (index !== undefined) {
+        if (value) {
+            txJSON.SetFlag = index;
+        }
+        else {
+            txJSON.ClearFlag = index;
+        }
+    }
+}
+function setTransactionFields(txJSON, input) {
+    var fieldSchema = AccountFields;
+    for (var fieldName in fieldSchema) {
+        var field = fieldSchema[fieldName];
+        var value = input[field.name];
+        if (value === undefined) {
+            continue;
+        }
+        // The value required to clear an account root field varies
+        if (value === CLEAR_SETTING && field.hasOwnProperty('defaults')) {
+            value = field.defaults;
+        }
+        if (field.encoding === 'hex' && !field.length) {
+            // This is currently only used for Domain field
+            value = new Buffer(value, 'ascii').toString('hex').toUpperCase();
+        }
+        txJSON[fieldName] = value;
+    }
+}
+/**
+ *  Note: A fee of 1% requires 101% of the destination to be sent for the
+ *        destination to receive 100%.
+ *  The transfer rate is specified as the input amount as fraction of 1.
+ *  To specify the default rate of 0%, a 100% input amount, specify 1.
+ *  To specify a rate of 1%, a 101% input amount, specify 1.01
+ *
+ *  @param {Number|String} transferRate
+ *
+ *  @returns {Number|String} numbers will be converted while strings
+ *                           are returned
+ */
+function convertTransferRate(transferRate) {
+    return (new bignumber_js_1.default(transferRate)).shift(9).toNumber();
+}
+function createIssueSetTransactionWithoutMemos(account, issueset) {
+    if (issueset.total == undefined) {
+        throw new ValidationError('total amount should be present');
+    }
+    if (issueset.total.issuer !== account) {
+        throw new ValidationError('only allow to issue asset for self');
+    }
+    var txJSON = {
+        TransactionType: 'IssueSet',
+        Account: account,
+        Total: issueset.total
+    };
+    setTransactionFlags(txJSON, _.omit(issueset, 'memos'));
+    setTransactionFields(txJSON, issueset);
+    if (txJSON.TransferRate && issueset.nonFungible) {
+        throw new ValidationError('Non fungible asset not allow to set transfer rate');
+    }
+    if (txJSON.TransferRate !== undefined) {
+        txJSON.TransferRate = convertTransferRate(txJSON.TransferRate);
+    }
+    if (issueset.additional) {
+        txJSON.Flags |= issuesetFlags.Additional;
+    }
+    if (issueset.nonFungible) {
+        txJSON.Flags |= issuesetFlags.NonFungible;
+    }
+    return txJSON;
+}
+function createIssueSetTransaction(account, issueset) {
+    var txJSON = createIssueSetTransactionWithoutMemos(account, issueset);
+    if (issueset.memos !== undefined) {
+        txJSON.Memos = _.map(issueset.memos, utils.convertMemo);
+    }
+    return txJSON;
+}
+function prepareIssueSet(address, issueset, instructions) {
+    if (instructions === void 0) { instructions = {}; }
+    validate.prepareSettings({ address: address, issueset: issueset, instructions: instructions });
+    var txJSON = createIssueSetTransaction(address, issueset);
+    return utils.prepareTransaction(txJSON, this, instructions);
+}
+exports.default = prepareIssueSet;
+
+/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(6).Buffer))
+
+/***/ }),
+/* 327 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = __webpack_require__(1);
-const utils = __webpack_require__(10);
+var _ = __webpack_require__(1);
+var utils = __webpack_require__(8);
 // const validate = utils.common.validate
-const toCalledAmount = utils.common.toCalledAmount;
-const paymentFlags = utils.common.txFlags.Payment;
-const ValidationError = utils.common.errors.ValidationError;
+var toCalledAmount = utils.common.toCalledAmount;
+var paymentFlags = utils.common.txFlags.Payment;
+var ValidationError = utils.common.errors.ValidationError;
 function isCALLToCALLPayment(payment) {
-    const sourceCurrency = _.get(payment, 'source.maxAmount.currency', _.get(payment, 'source.amount.currency'));
-    const destinationCurrency = _.get(payment, 'destination.amount.currency', _.get(payment, 'destination.minAmount.currency'));
+    var sourceCurrency = _.get(payment, 'source.maxAmount.currency', _.get(payment, 'source.amount.currency'));
+    var destinationCurrency = _.get(payment, 'destination.amount.currency', _.get(payment, 'destination.minAmount.currency'));
     return sourceCurrency === 'CALL' && destinationCurrency === 'CALL';
 }
 function isIOUWithoutCounterparty(amount) {
@@ -41978,8 +42314,8 @@ function isIOUWithoutCounterparty(amount) {
         && amount.counterparty === undefined;
 }
 function applyAnyCounterpartyEncoding(payment) {
-    _.forEach([payment.source, payment.destination], adjustment => {
-        _.forEach(['amount', 'minAmount', 'maxAmount'], key => {
+    _.forEach([payment.source, payment.destination], function (adjustment) {
+        _.forEach(['amount', 'minAmount', 'maxAmount'], function (key) {
             if (isIOUWithoutCounterparty(adjustment[key])) {
                 adjustment[key].counterparty = adjustment.issuer;
             }
@@ -41987,13 +42323,13 @@ function applyAnyCounterpartyEncoding(payment) {
     });
 }
 function createMaximalAmount(amount) {
-    const maxCALLValue = '100000000000';
-    const maxIOUValue = '9999999999999999e80';
-    const maxValue = amount.currency === 'CALL' ? maxCALLValue : maxIOUValue;
+    var maxCALLValue = '100000000000';
+    var maxIOUValue = '9999999999999999e80';
+    var maxValue = amount.currency === 'CALL' ? maxCALLValue : maxIOUValue;
     return _.assign({}, amount, { value: maxValue });
 }
 function createPaymentTransaction(address, paymentArgument) {
-    const payment = _.cloneDeep(paymentArgument);
+    var payment = _.cloneDeep(paymentArgument);
     applyAnyCounterpartyEncoding(payment);
     if (address !== payment.source.address) {
         throw new ValidationError('address must match payment.source.address');
@@ -42003,10 +42339,10 @@ function createPaymentTransaction(address, paymentArgument) {
         throw new ValidationError('payment must specify either (source.maxAmount '
             + 'and destination.amount) or (source.amount and destination.minAmount)');
     }
-    const amount = payment.destination.minAmount && !isCALLToCALLPayment(payment) ?
+    var amount = payment.destination.minAmount && !isCALLToCALLPayment(payment) ?
         createMaximalAmount(payment.destination.minAmount) :
         (payment.destination.amount || payment.destination.minAmount);
-    const txJSON = {
+    var txJSON = {
         TransactionType: 'Payment',
         Account: payment.source.address,
         Destination: payment.destination.address,
@@ -42015,6 +42351,9 @@ function createPaymentTransaction(address, paymentArgument) {
     };
     if (payment.invoiceID !== undefined) {
         txJSON.InvoiceID = payment.invoiceID;
+    }
+    if (payment.invoice !== undefined) {
+        txJSON.Invoice = payment.invoice;
     }
     if (payment.source.tag !== undefined) {
         txJSON.SourceTag = payment.source.tag;
@@ -42049,36 +42388,37 @@ function createPaymentTransaction(address, paymentArgument) {
     }
     return txJSON;
 }
-function preparePayment(address, payment, instructions = {}) {
+function preparePayment(address, payment, instructions) {
+    if (instructions === void 0) { instructions = {}; }
     // validate.preparePayment({address, payment, instructions})
-    const txJSON = createPaymentTransaction(address, payment);
+    var txJSON = createPaymentTransaction(address, payment);
     return utils.prepareTransaction(txJSON, this, instructions);
 }
 exports.default = preparePayment;
 
 
 /***/ }),
-/* 326 */
+/* 328 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = __webpack_require__(1);
-const bignumber_js_1 = __webpack_require__(5);
-const utils = __webpack_require__(10);
-const validate = utils.common.validate;
-const trustlineFlags = utils.common.txFlags.TrustSet;
+var _ = __webpack_require__(1);
+var bignumber_js_1 = __webpack_require__(5);
+var utils = __webpack_require__(8);
+var validate = utils.common.validate;
+var trustlineFlags = utils.common.txFlags.TrustSet;
 function convertQuality(quality) {
     return (new bignumber_js_1.default(quality)).shift(9).truncated().toNumber();
 }
 function createTrustlineTransaction(account, trustline) {
-    const limit = {
+    var limit = {
         currency: trustline.currency,
         issuer: trustline.counterparty,
         value: trustline.limit
     };
-    const txJSON = {
+    var txJSON = {
         TransactionType: 'TrustSet',
         Account: account,
         LimitAmount: limit,
@@ -42106,31 +42446,32 @@ function createTrustlineTransaction(account, trustline) {
     }
     return txJSON;
 }
-function prepareTrustline(address, trustline, instructions = {}) {
-    validate.prepareTrustline({ address, trustline, instructions });
-    const txJSON = createTrustlineTransaction(address, trustline);
+function prepareTrustline(address, trustline, instructions) {
+    if (instructions === void 0) { instructions = {}; }
+    validate.prepareTrustline({ address: address, trustline: trustline, instructions: instructions });
+    var txJSON = createTrustlineTransaction(address, trustline);
     return utils.prepareTransaction(txJSON, this, instructions);
 }
 exports.default = prepareTrustline;
 
 
 /***/ }),
-/* 327 */
+/* 329 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = __webpack_require__(1);
-const utils = __webpack_require__(10);
-const offerFlags = utils.common.txFlags.OfferCreate;
-const common_1 = __webpack_require__(0);
+var _ = __webpack_require__(1);
+var utils = __webpack_require__(8);
+var offerFlags = utils.common.txFlags.OfferCreate;
+var common_1 = __webpack_require__(0);
 function createOrderTransaction(account, order) {
-    const takerPays = utils.common.toCalledAmount(order.direction === 'buy' ?
+    var takerPays = utils.common.toCalledAmount(order.direction === 'buy' ?
         order.quantity : order.totalPrice);
-    const takerGets = utils.common.toCalledAmount(order.direction === 'buy' ?
+    var takerGets = utils.common.toCalledAmount(order.direction === 'buy' ?
         order.totalPrice : order.quantity);
-    const txJSON = {
+    var txJSON = {
         TransactionType: 'OfferCreate',
         Account: account,
         TakerGets: takerGets,
@@ -42160,26 +42501,27 @@ function createOrderTransaction(account, order) {
     }
     return txJSON;
 }
-function prepareOrder(address, order, instructions = {}) {
+function prepareOrder(address, order, instructions) {
+    if (instructions === void 0) { instructions = {}; }
     // validate.prepareOrder({address, order, instructions})
-    const txJSON = createOrderTransaction(address, order);
+    var txJSON = createOrderTransaction(address, order);
     return utils.prepareTransaction(txJSON, this, instructions);
 }
 exports.default = prepareOrder;
 
 
 /***/ }),
-/* 328 */
+/* 330 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = __webpack_require__(1);
-const utils = __webpack_require__(10);
-const validate = utils.common.validate;
+var _ = __webpack_require__(1);
+var utils = __webpack_require__(8);
+var validate = utils.common.validate;
 function createOrderCancellationTransaction(account, orderCancellation) {
-    const txJSON = {
+    var txJSON = {
         TransactionType: 'OfferCancel',
         Account: account,
         OfferSequence: orderCancellation.orderSequence
@@ -42189,27 +42531,28 @@ function createOrderCancellationTransaction(account, orderCancellation) {
     }
     return txJSON;
 }
-function prepareOrderCancellation(address, orderCancellation, instructions = {}) {
-    validate.prepareOrderCancellation({ address, orderCancellation, instructions });
-    const txJSON = createOrderCancellationTransaction(address, orderCancellation);
+function prepareOrderCancellation(address, orderCancellation, instructions) {
+    if (instructions === void 0) { instructions = {}; }
+    validate.prepareOrderCancellation({ address: address, orderCancellation: orderCancellation, instructions: instructions });
+    var txJSON = createOrderCancellationTransaction(address, orderCancellation);
     return utils.prepareTransaction(txJSON, this, instructions);
 }
 exports.default = prepareOrderCancellation;
 
 
 /***/ }),
-/* 329 */
+/* 331 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = __webpack_require__(1);
-const utils = __webpack_require__(10);
-const common_1 = __webpack_require__(0);
-const ValidationError = utils.common.errors.ValidationError;
+var _ = __webpack_require__(1);
+var utils = __webpack_require__(8);
+var common_1 = __webpack_require__(0);
+var ValidationError = utils.common.errors.ValidationError;
 function createEscrowCreationTransaction(account, payment) {
-    const txJSON = {
+    var txJSON = {
         TransactionType: 'EscrowCreate',
         Account: account,
         Destination: payment.destination,
@@ -42240,27 +42583,28 @@ function createEscrowCreationTransaction(account, payment) {
     }
     return txJSON;
 }
-function prepareEscrowCreation(address, escrowCreation, instructions = {}) {
-    common_1.validate.prepareEscrowCreation({ address, escrowCreation, instructions });
-    const txJSON = createEscrowCreationTransaction(address, escrowCreation);
+function prepareEscrowCreation(address, escrowCreation, instructions) {
+    if (instructions === void 0) { instructions = {}; }
+    common_1.validate.prepareEscrowCreation({ address: address, escrowCreation: escrowCreation, instructions: instructions });
+    var txJSON = createEscrowCreationTransaction(address, escrowCreation);
     return utils.prepareTransaction(txJSON, this, instructions);
 }
 exports.default = prepareEscrowCreation;
 
 
 /***/ }),
-/* 330 */
+/* 332 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = __webpack_require__(1);
-const utils = __webpack_require__(10);
-const validate = utils.common.validate;
-const ValidationError = utils.common.errors.ValidationError;
+var _ = __webpack_require__(1);
+var utils = __webpack_require__(8);
+var validate = utils.common.validate;
+var ValidationError = utils.common.errors.ValidationError;
 function createEscrowExecutionTransaction(account, payment) {
-    const txJSON = {
+    var txJSON = {
         TransactionType: 'EscrowFinish',
         Account: account,
         Owner: payment.owner,
@@ -42281,26 +42625,27 @@ function createEscrowExecutionTransaction(account, payment) {
     }
     return txJSON;
 }
-function prepareEscrowExecution(address, escrowExecution, instructions = {}) {
-    validate.prepareEscrowExecution({ address, escrowExecution, instructions });
-    const txJSON = createEscrowExecutionTransaction(address, escrowExecution);
+function prepareEscrowExecution(address, escrowExecution, instructions) {
+    if (instructions === void 0) { instructions = {}; }
+    validate.prepareEscrowExecution({ address: address, escrowExecution: escrowExecution, instructions: instructions });
+    var txJSON = createEscrowExecutionTransaction(address, escrowExecution);
     return utils.prepareTransaction(txJSON, this, instructions);
 }
 exports.default = prepareEscrowExecution;
 
 
 /***/ }),
-/* 331 */
+/* 333 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = __webpack_require__(1);
-const utils = __webpack_require__(10);
-const validate = utils.common.validate;
+var _ = __webpack_require__(1);
+var utils = __webpack_require__(8);
+var validate = utils.common.validate;
 function createEscrowCancellationTransaction(account, payment) {
-    const txJSON = {
+    var txJSON = {
         TransactionType: 'EscrowCancel',
         Account: account,
         Owner: payment.owner,
@@ -42311,25 +42656,26 @@ function createEscrowCancellationTransaction(account, payment) {
     }
     return txJSON;
 }
-function prepareEscrowCancellation(address, escrowCancellation, instructions = {}) {
-    validate.prepareEscrowCancellation({ address, escrowCancellation, instructions });
-    const txJSON = createEscrowCancellationTransaction(address, escrowCancellation);
+function prepareEscrowCancellation(address, escrowCancellation, instructions) {
+    if (instructions === void 0) { instructions = {}; }
+    validate.prepareEscrowCancellation({ address: address, escrowCancellation: escrowCancellation, instructions: instructions });
+    var txJSON = createEscrowCancellationTransaction(address, escrowCancellation);
     return utils.prepareTransaction(txJSON, this, instructions);
 }
 exports.default = prepareEscrowCancellation;
 
 
 /***/ }),
-/* 332 */
+/* 334 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const utils = __webpack_require__(10);
-const common_1 = __webpack_require__(0);
+var utils = __webpack_require__(8);
+var common_1 = __webpack_require__(0);
 function createPaymentChannelCreateTransaction(account, paymentChannel) {
-    const txJSON = {
+    var txJSON = {
         Account: account,
         TransactionType: 'PaymentChannelCreate',
         Amount: common_1.callToDrops(paymentChannel.amount),
@@ -42348,25 +42694,26 @@ function createPaymentChannelCreateTransaction(account, paymentChannel) {
     }
     return txJSON;
 }
-function preparePaymentChannelCreate(address, paymentChannelCreate, instructions = {}) {
-    common_1.validate.preparePaymentChannelCreate({ address, paymentChannelCreate, instructions });
-    const txJSON = createPaymentChannelCreateTransaction(address, paymentChannelCreate);
+function preparePaymentChannelCreate(address, paymentChannelCreate, instructions) {
+    if (instructions === void 0) { instructions = {}; }
+    common_1.validate.preparePaymentChannelCreate({ address: address, paymentChannelCreate: paymentChannelCreate, instructions: instructions });
+    var txJSON = createPaymentChannelCreateTransaction(address, paymentChannelCreate);
     return utils.prepareTransaction(txJSON, this, instructions);
 }
 exports.default = preparePaymentChannelCreate;
 
 
 /***/ }),
-/* 333 */
+/* 335 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const utils = __webpack_require__(10);
-const common_1 = __webpack_require__(0);
+var utils = __webpack_require__(8);
+var common_1 = __webpack_require__(0);
 function createPaymentChannelFundTransaction(account, fund) {
-    const txJSON = {
+    var txJSON = {
         Account: account,
         TransactionType: 'PaymentChannelFund',
         Channel: fund.channel,
@@ -42377,27 +42724,28 @@ function createPaymentChannelFundTransaction(account, fund) {
     }
     return txJSON;
 }
-function preparePaymentChannelFund(address, paymentChannelFund, instructions = {}) {
-    common_1.validate.preparePaymentChannelFund({ address, paymentChannelFund, instructions });
-    const txJSON = createPaymentChannelFundTransaction(address, paymentChannelFund);
+function preparePaymentChannelFund(address, paymentChannelFund, instructions) {
+    if (instructions === void 0) { instructions = {}; }
+    common_1.validate.preparePaymentChannelFund({ address: address, paymentChannelFund: paymentChannelFund, instructions: instructions });
+    var txJSON = createPaymentChannelFundTransaction(address, paymentChannelFund);
     return utils.prepareTransaction(txJSON, this, instructions);
 }
 exports.default = preparePaymentChannelFund;
 
 
 /***/ }),
-/* 334 */
+/* 336 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const utils = __webpack_require__(10);
-const ValidationError = utils.common.errors.ValidationError;
-const claimFlags = utils.common.txFlags.PaymentChannelClaim;
-const common_1 = __webpack_require__(0);
+var utils = __webpack_require__(8);
+var ValidationError = utils.common.errors.ValidationError;
+var claimFlags = utils.common.txFlags.PaymentChannelClaim;
+var common_1 = __webpack_require__(0);
 function createPaymentChannelClaimTransaction(account, claim) {
-    const txJSON = {
+    var txJSON = {
         Account: account,
         TransactionType: 'PaymentChannelClaim',
         Channel: claim.channel,
@@ -42431,36 +42779,37 @@ function createPaymentChannelClaimTransaction(account, claim) {
     }
     return txJSON;
 }
-function preparePaymentChannelClaim(address, paymentChannelClaim, instructions = {}) {
-    common_1.validate.preparePaymentChannelClaim({ address, paymentChannelClaim, instructions });
-    const txJSON = createPaymentChannelClaimTransaction(address, paymentChannelClaim);
+function preparePaymentChannelClaim(address, paymentChannelClaim, instructions) {
+    if (instructions === void 0) { instructions = {}; }
+    common_1.validate.preparePaymentChannelClaim({ address: address, paymentChannelClaim: paymentChannelClaim, instructions: instructions });
+    var txJSON = createPaymentChannelClaimTransaction(address, paymentChannelClaim);
     return utils.prepareTransaction(txJSON, this, instructions);
 }
 exports.default = preparePaymentChannelClaim;
 
 
 /***/ }),
-/* 335 */
+/* 337 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 /* WEBPACK VAR INJECTION */(function(Buffer) {
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = __webpack_require__(1);
-const assert = __webpack_require__(2);
-const bignumber_js_1 = __webpack_require__(5);
-const utils = __webpack_require__(10);
-const validate = utils.common.validate;
-const AccountFlagIndices = utils.common.constants.AccountFlagIndices;
-const AccountFields = utils.common.constants.AccountFields;
+var _ = __webpack_require__(1);
+var assert = __webpack_require__(2);
+var bignumber_js_1 = __webpack_require__(5);
+var utils = __webpack_require__(8);
+var validate = utils.common.validate;
+var AccountFlagIndices = utils.common.constants.AccountFlagIndices;
+var AccountFields = utils.common.constants.AccountFields;
 // Emptry string passed to setting will clear it
-const CLEAR_SETTING = null;
+var CLEAR_SETTING = null;
 function setTransactionFlags(txJSON, values) {
-    const keys = Object.keys(values);
+    var keys = Object.keys(values);
     assert(keys.length === 1, 'ERROR: can only set one setting per transaction');
-    const flagName = keys[0];
-    const value = values[flagName];
-    const index = AccountFlagIndices[flagName];
+    var flagName = keys[0];
+    var value = values[flagName];
+    var index = AccountFlagIndices[flagName];
     if (index !== undefined) {
         if (value) {
             txJSON.SetFlag = index;
@@ -42471,10 +42820,10 @@ function setTransactionFlags(txJSON, values) {
     }
 }
 function setTransactionFields(txJSON, input) {
-    const fieldSchema = AccountFields;
-    for (const fieldName in fieldSchema) {
-        const field = fieldSchema[fieldName];
-        let value = input[field.name];
+    var fieldSchema = AccountFields;
+    for (var fieldName in fieldSchema) {
+        var field = fieldSchema[fieldName];
+        var value = input[field.name];
         if (value === undefined) {
             continue;
         }
@@ -42514,7 +42863,7 @@ function formatSignerEntry(signer) {
 }
 function createSettingsTransactionWithoutMemos(account, settings) {
     if (settings.regularKey !== undefined) {
-        const removeRegularKey = {
+        var removeRegularKey = {
             TransactionType: 'SetRegularKey',
             Account: account
         };
@@ -42538,7 +42887,7 @@ function createSettingsTransactionWithoutMemos(account, settings) {
             Total: settings.total
         };
     }
-    const txJSON = {
+    var txJSON = {
         TransactionType: 'AccountSet',
         Account: account
     };
@@ -42550,107 +42899,19 @@ function createSettingsTransactionWithoutMemos(account, settings) {
     return txJSON;
 }
 function createSettingsTransaction(account, settings) {
-    const txJSON = createSettingsTransactionWithoutMemos(account, settings);
+    var txJSON = createSettingsTransactionWithoutMemos(account, settings);
     if (settings.memos !== undefined) {
         txJSON.Memos = _.map(settings.memos, utils.convertMemo);
     }
     return txJSON;
 }
-function prepareSettings(address, settings, instructions = {}) {
-    validate.prepareSettings({ address, settings, instructions });
-    const txJSON = createSettingsTransaction(address, settings);
+function prepareSettings(address, settings, instructions) {
+    if (instructions === void 0) { instructions = {}; }
+    validate.prepareSettings({ address: address, settings: settings, instructions: instructions });
+    var txJSON = createSettingsTransaction(address, settings);
     return utils.prepareTransaction(txJSON, this, instructions);
 }
 exports.default = prepareSettings;
-
-/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(6).Buffer))
-
-/***/ }),
-/* 336 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-const utils = __webpack_require__(10);
-const keypairs = __webpack_require__(25);
-const binary = __webpack_require__(26);
-const call_hashes_1 = __webpack_require__(43);
-const validate = utils.common.validate;
-function computeSignature(tx, privateKey, signAs) {
-    const signingData = signAs ?
-        binary.encodeForMultisigning(tx, signAs) : binary.encodeForSigning(tx);
-    return keypairs.sign(signingData, privateKey);
-}
-function sign(txJSON, secret, options = {}) {
-    validate.sign({ txJSON, secret });
-    // we can't validate that the secret matches the account because
-    // the secret could correspond to the regular key
-    const tx = JSON.parse(txJSON);
-    if (tx.TxnSignature || tx.Signers) {
-        throw new utils.common.errors.ValidationError('txJSON must not contain "TxnSignature" or "Signers" properties');
-    }
-    const keypair = keypairs.deriveKeypair(secret);
-    tx.SigningPubKey = options.signAs ? '' : keypair.publicKey;
-    if (options.signAs) {
-        const signer = {
-            Account: options.signAs,
-            SigningPubKey: keypair.publicKey,
-            TxnSignature: computeSignature(tx, keypair.privateKey, options.signAs)
-        };
-        tx.Signers = [{ Signer: signer }];
-    }
-    else {
-        tx.TxnSignature = computeSignature(tx, keypair.privateKey);
-    }
-    const serialized = binary.encode(tx);
-    return {
-        signedTransaction: serialized,
-        id: call_hashes_1.computeBinaryTransactionHash(serialized)
-    };
-}
-exports.default = sign;
-
-
-/***/ }),
-/* 337 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-/* WEBPACK VAR INJECTION */(function(Buffer) {
-Object.defineProperty(exports, "__esModule", { value: true });
-const _ = __webpack_require__(1);
-const binary = __webpack_require__(26);
-const utils = __webpack_require__(10);
-const bignumber_js_1 = __webpack_require__(5);
-const call_address_codec_1 = __webpack_require__(31);
-const common_1 = __webpack_require__(0);
-const call_hashes_1 = __webpack_require__(43);
-function addressToBigNumber(address) {
-    const hex = (new Buffer(call_address_codec_1.decodeAddress(address))).toString('hex');
-    return new bignumber_js_1.default(hex, 16);
-}
-function compareSigners(a, b) {
-    return addressToBigNumber(a.Signer.Account)
-        .comparedTo(addressToBigNumber(b.Signer.Account));
-}
-function combine(signedTransactions) {
-    common_1.validate.combine({ signedTransactions });
-    // TODO: signedTransactions is an array of strings in the documentation, but
-    // tests and this code handle it as an array of objects. Fix!
-    const txs = _.map(signedTransactions, binary.decode);
-    const tx = _.omit(txs[0], 'Signers');
-    if (!_.every(txs, _tx => _.isEqual(tx, _.omit(_tx, 'Signers')))) {
-        throw new utils.common.errors.ValidationError('txJSON is not the same for all signedTransactions');
-    }
-    const unsortedSigners = _.reduce(txs, (accumulator, _tx) => accumulator.concat(_tx.Signers || []), []);
-    const signers = unsortedSigners.sort(compareSigners);
-    const signedTx = _.assign({}, tx, { Signers: signers });
-    const signedTransaction = binary.encode(signedTx);
-    const id = call_hashes_1.computeBinaryTransactionHash(signedTransaction);
-    return { signedTransaction, id };
-}
-exports.default = combine;
 
 /* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(6).Buffer))
 
@@ -42661,8 +42922,100 @@ exports.default = combine;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = __webpack_require__(1);
-const utils = __webpack_require__(10);
+var utils = __webpack_require__(8);
+var keypairs = __webpack_require__(25);
+var binary = __webpack_require__(26);
+var call_hashes_1 = __webpack_require__(43);
+var validate = utils.common.validate;
+function computeSignature(tx, privateKey, signAs) {
+    var signingData = signAs ?
+        binary.encodeForMultisigning(tx, signAs) : binary.encodeForSigning(tx);
+    return keypairs.sign(signingData, privateKey);
+}
+function sign(txJSON, secret, options) {
+    if (options === void 0) { options = {}; }
+    validate.sign({ txJSON: txJSON, secret: secret });
+    // we can't validate that the secret matches the account because
+    // the secret could correspond to the regular key
+    var tx = JSON.parse(txJSON);
+    if (tx.TxnSignature || tx.Signers) {
+        throw new utils.common.errors.ValidationError('txJSON must not contain "TxnSignature" or "Signers" properties');
+    }
+    var keypair = keypairs.deriveKeypair(secret);
+    tx.SigningPubKey = options.signAs ? '' : keypair.publicKey;
+    if (options.signAs) {
+        var signer = {
+            Account: options.signAs,
+            SigningPubKey: keypair.publicKey,
+            TxnSignature: computeSignature(tx, keypair.privateKey, options.signAs)
+        };
+        tx.Signers = [{ Signer: signer }];
+    }
+    else {
+        tx.TxnSignature = computeSignature(tx, keypair.privateKey);
+    }
+    var serialized = binary.encode(tx);
+    return {
+        signedTransaction: serialized,
+        id: call_hashes_1.computeBinaryTransactionHash(serialized)
+    };
+}
+exports.default = sign;
+
+
+/***/ }),
+/* 339 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+/* WEBPACK VAR INJECTION */(function(Buffer) {
+Object.defineProperty(exports, "__esModule", { value: true });
+var _ = __webpack_require__(1);
+var binary = __webpack_require__(26);
+var utils = __webpack_require__(8);
+var bignumber_js_1 = __webpack_require__(5);
+var call_address_codec_1 = __webpack_require__(31);
+var common_1 = __webpack_require__(0);
+var call_hashes_1 = __webpack_require__(43);
+function addressToBigNumber(address) {
+    var hex = (new Buffer(call_address_codec_1.decodeAddress(address))).toString('hex');
+    return new bignumber_js_1.default(hex, 16);
+}
+function compareSigners(a, b) {
+    return addressToBigNumber(a.Signer.Account)
+        .comparedTo(addressToBigNumber(b.Signer.Account));
+}
+function combine(signedTransactions) {
+    common_1.validate.combine({ signedTransactions: signedTransactions });
+    // TODO: signedTransactions is an array of strings in the documentation, but
+    // tests and this code handle it as an array of objects. Fix!
+    var txs = _.map(signedTransactions, binary.decode);
+    var tx = _.omit(txs[0], 'Signers');
+    if (!_.every(txs, function (_tx) { return _.isEqual(tx, _.omit(_tx, 'Signers')); })) {
+        throw new utils.common.errors.ValidationError('txJSON is not the same for all signedTransactions');
+    }
+    var unsortedSigners = _.reduce(txs, function (accumulator, _tx) {
+        return accumulator.concat(_tx.Signers || []);
+    }, []);
+    var signers = unsortedSigners.sort(compareSigners);
+    var signedTx = _.assign({}, tx, { Signers: signers });
+    var signedTransaction = binary.encode(signedTx);
+    var id = call_hashes_1.computeBinaryTransactionHash(signedTransaction);
+    return { signedTransaction: signedTransaction, id: id };
+}
+exports.default = combine;
+
+/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(6).Buffer))
+
+/***/ }),
+/* 340 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+var _ = __webpack_require__(1);
+var utils = __webpack_require__(8);
 function isImmediateRejection(engineResult) {
     // note: "tel" errors mean the local server refused to process the
     // transaction *at that time*, but it could potentially buffer the
@@ -42673,7 +43026,7 @@ function isImmediateRejection(engineResult) {
     return _.startsWith(engineResult, 'tem');
 }
 function formatSubmitResponse(response) {
-    const data = {
+    var data = {
         resultCode: response.engine_result,
         resultMessage: response.engine_result_message
     };
@@ -42703,23 +43056,23 @@ exports.default = submit;
 
 
 /***/ }),
-/* 339 */
+/* 341 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const keypairs = __webpack_require__(25);
-const common = __webpack_require__(0);
-const { errors, validate } = common;
+var keypairs = __webpack_require__(25);
+var common = __webpack_require__(0);
+var errors = common.errors, validate = common.validate;
 function generateAddress(options) {
-    const secret = keypairs.generateSeed(options);
-    const keypair = keypairs.deriveKeypair(secret);
-    const address = keypairs.deriveAddress(keypair.publicKey);
-    return { secret, address };
+    var secret = keypairs.generateSeed(options);
+    var keypair = keypairs.deriveKeypair(secret);
+    var address = keypairs.deriveAddress(keypair.publicKey);
+    return { secret: secret, address: address };
 }
 function generateAddressAPI(options) {
-    validate.generateAddress({ options });
+    validate.generateAddress({ options: options });
     try {
         return generateAddress(options);
     }
@@ -42731,17 +43084,17 @@ exports.generateAddressAPI = generateAddressAPI;
 
 
 /***/ }),
-/* 340 */
+/* 342 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const keypairs = __webpack_require__(25);
+var keypairs = __webpack_require__(25);
 function fromSecret(secret) {
     try {
-        const keypair = keypairs.deriveKeypair(secret);
-        const address = keypairs.deriveAddress(keypair.publicKey);
+        var keypair = keypairs.deriveKeypair(secret);
+        var address = keypairs.deriveAddress(keypair.publicKey);
         return { secret: secret, address: address };
     }
     catch (error) {
@@ -42753,15 +43106,15 @@ exports.fromSecret = fromSecret;
 
 
 /***/ }),
-/* 341 */
+/* 343 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = __webpack_require__(1);
-const hashes = __webpack_require__(43);
-const common = __webpack_require__(0);
+var _ = __webpack_require__(1);
+var hashes = __webpack_require__(43);
+var common = __webpack_require__(0);
 function convertLedgerHeader(header) {
     return {
         account_hash: header.stateHash,
@@ -42780,20 +43133,20 @@ function convertLedgerHeader(header) {
     };
 }
 function hashLedgerHeader(ledgerHeader) {
-    const header = convertLedgerHeader(ledgerHeader);
+    var header = convertLedgerHeader(ledgerHeader);
     return hashes.computeLedgerHash(header);
 }
 function computeTransactionHash(ledger, version) {
     if (ledger.rawTransactions === undefined) {
         return ledger.transactionHash;
     }
-    const transactions = JSON.parse(ledger.rawTransactions);
-    const txs = _.map(transactions, tx => {
-        const mergeTx = _.assign({}, _.omit(tx, 'tx'), tx.tx || {});
-        const renameMeta = _.assign({}, _.omit(mergeTx, 'meta'), tx.meta ? { metaData: tx.meta } : {});
+    var transactions = JSON.parse(ledger.rawTransactions);
+    var txs = _.map(transactions, function (tx) {
+        var mergeTx = _.assign({}, _.omit(tx, 'tx'), tx.tx || {});
+        var renameMeta = _.assign({}, _.omit(mergeTx, 'meta'), tx.meta ? { metaData: tx.meta } : {});
         return renameMeta;
     });
-    const transactionHash = hashes.computeTransactionTreeHash(txs, version);
+    var transactionHash = hashes.computeTransactionTreeHash(txs, version);
     if (ledger.transactionHash !== undefined
         && ledger.transactionHash !== transactionHash) {
         throw new common.errors.ValidationError('transactionHash in header'
@@ -42805,18 +43158,18 @@ function computeStateHash(ledger, version) {
     if (ledger.rawState === undefined) {
         return ledger.stateHash;
     }
-    const state = JSON.parse(ledger.rawState);
-    const stateHash = hashes.computeStateTreeHash(state, version);
+    var state = JSON.parse(ledger.rawState);
+    var stateHash = hashes.computeStateTreeHash(state, version);
     if (ledger.stateHash !== undefined && ledger.stateHash !== stateHash) {
         throw new common.errors.ValidationError('stateHash in header'
             + ' does not match computed hash of state');
     }
     return stateHash;
 }
-const sLCF_SHAMapV2 = 0x02;
+var sLCF_SHAMapV2 = 0x02;
 function computeLedgerHash(ledger) {
-    const version = ((ledger.closeFlags & sLCF_SHAMapV2) === 0) ? 1 : 2;
-    const subhashes = {
+    var version = ((ledger.closeFlags & sLCF_SHAMapV2) === 0) ? 1 : 2;
+    var subhashes = {
         transactionHash: computeTransactionHash(ledger, version),
         stateHash: computeStateHash(ledger, version)
     };
@@ -42826,19 +43179,19 @@ exports.default = computeLedgerHash;
 
 
 /***/ }),
-/* 342 */
+/* 344 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const common = __webpack_require__(0);
-const keypairs = __webpack_require__(25);
-const binary = __webpack_require__(26);
-const { validate, callToDrops } = common;
+var common = __webpack_require__(0);
+var keypairs = __webpack_require__(25);
+var binary = __webpack_require__(26);
+var validate = common.validate, callToDrops = common.callToDrops;
 function signPaymentChannelClaim(channel, amount, privateKey) {
-    validate.signPaymentChannelClaim({ channel, amount, privateKey });
-    const signingData = binary.encodeForSigningClaim({
+    validate.signPaymentChannelClaim({ channel: channel, amount: amount, privateKey: privateKey });
+    var signingData = binary.encodeForSigningClaim({
         channel: channel,
         amount: callToDrops(amount)
     });
@@ -42848,18 +43201,18 @@ exports.default = signPaymentChannelClaim;
 
 
 /***/ }),
-/* 343 */
+/* 345 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const keypairs = __webpack_require__(25);
-const binary = __webpack_require__(26);
-const common_1 = __webpack_require__(0);
+var keypairs = __webpack_require__(25);
+var binary = __webpack_require__(26);
+var common_1 = __webpack_require__(0);
 function verifyPaymentChannelClaim(channel, amount, signature, publicKey) {
-    common_1.validate.verifyPaymentChannelClaim({ channel, amount, signature, publicKey });
-    const signingData = binary.encodeForSigningClaim({
+    common_1.validate.verifyPaymentChannelClaim({ channel: channel, amount: amount, signature: signature, publicKey: publicKey });
+    var signingData = binary.encodeForSigningClaim({
         channel: channel,
         amount: common_1.callToDrops(amount)
     });
@@ -42869,17 +43222,18 @@ exports.default = verifyPaymentChannelClaim;
 
 
 /***/ }),
-/* 344 */
+/* 346 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const common_1 = __webpack_require__(0);
-const ledger_1 = __webpack_require__(345);
-function getLedger(options = {}) {
-    common_1.validate.getLedger({ options });
-    const request = {
+var common_1 = __webpack_require__(0);
+var ledger_1 = __webpack_require__(347);
+function getLedger(options) {
+    if (options === void 0) { options = {}; }
+    common_1.validate.getLedger({ options: options });
+    var request = {
         command: 'ledger',
         ledger_index: options.ledgerVersion || 'validated',
         ledger_hash: options.ledgerHash,
@@ -42887,27 +43241,29 @@ function getLedger(options = {}) {
         transactions: options.includeTransactions,
         accounts: options.includeState
     };
-    return this.connection.request(request).then(response => ledger_1.default(response.ledger));
+    return this.connection.request(request).then(function (response) {
+        return ledger_1.default(response.ledger);
+    });
 }
 exports.default = getLedger;
 
 
 /***/ }),
-/* 345 */
+/* 347 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = __webpack_require__(1);
-const common_1 = __webpack_require__(0);
-const transaction_1 = __webpack_require__(49);
+var _ = __webpack_require__(1);
+var common_1 = __webpack_require__(0);
+var transaction_1 = __webpack_require__(49);
 function parseTransactionWrapper(ledgerVersion, tx) {
-    const transaction = _.assign({}, _.omit(tx, 'metaData'), {
+    var transaction = _.assign({}, _.omit(tx, 'metaData'), {
         meta: tx.metaData,
         ledger_index: ledgerVersion
     });
-    const result = transaction_1.default(transaction);
+    var result = transaction_1.default(transaction);
     if (!result.outcome.ledgerVersion) {
         result.outcome.ledgerVersion = ledgerVersion;
     }
@@ -42935,7 +43291,7 @@ function parseState(state) {
     return { rawState: JSON.stringify(state) };
 }
 function parseLedger(ledger) {
-    const ledgerVersion = parseInt(ledger.ledger_index || ledger.seqNum, 10);
+    var ledgerVersion = parseInt(ledger.ledger_index || ledger.seqNum, 10);
     return common_1.removeUndefined(Object.assign({
         stateHash: ledger.account_hash,
         closeTime: common_1.callTimeToISO8601(ledger.close_time),
@@ -42953,11 +43309,21 @@ exports.default = parseLedger;
 
 
 /***/ }),
-/* 346 */
+/* 348 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
+var __extends = (this && this.__extends) || (function () {
+    var extendStatics = Object.setPrototypeOf ||
+        ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
+        function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
+    return function (d, b) {
+        extendStatics(d, b);
+        function __() { this.constructor = d; }
+        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+    };
+})();
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     return new (P || (P = Promise))(function (resolve, reject) {
         function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
@@ -42966,64 +43332,111 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __generator = (this && this.__generator) || function (thisArg, body) {
+    var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g;
+    return g = { next: verb(0), "throw": verb(1), "return": verb(2) }, typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
+    function verb(n) { return function (v) { return step([n, v]); }; }
+    function step(op) {
+        if (f) throw new TypeError("Generator is already executing.");
+        while (_) try {
+            if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
+            if (y = 0, t) op = [op[0] & 2, t.value];
+            switch (op[0]) {
+                case 0: case 1: t = op; break;
+                case 4: _.label++; return { value: op[1], done: false };
+                case 5: _.label++; y = op[1]; op = [0]; continue;
+                case 7: op = _.ops.pop(); _.trys.pop(); continue;
+                default:
+                    if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) { _ = 0; continue; }
+                    if (op[0] === 3 && (!t || (op[1] > t[0] && op[1] < t[3]))) { _.label = op[1]; break; }
+                    if (op[0] === 6 && _.label < t[1]) { _.label = t[1]; t = op; break; }
+                    if (t && _.label < t[2]) { _.label = t[2]; _.ops.push(op); break; }
+                    if (t[2]) _.ops.pop();
+                    _.trys.pop(); continue;
+            }
+            op = body.call(thisArg, _);
+        } catch (e) { op = [6, e]; y = 0; } finally { f = t = 0; }
+        if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
+    }
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = __webpack_require__(1);
-const api_1 = __webpack_require__(56);
-class CallAPIBroadcast extends api_1.CallAPI {
-    constructor(servers, options) {
-        super(options);
-        this.ledgerVersion = undefined;
-        const apis = servers.map(server => new api_1.CallAPI(_.assign({}, options, { server })));
+var _ = __webpack_require__(1);
+var api_1 = __webpack_require__(56);
+var CallAPIBroadcast = /** @class */ (function (_super) {
+    __extends(CallAPIBroadcast, _super);
+    function CallAPIBroadcast(servers, options) {
+        var _this = _super.call(this, options) || this;
+        _this.ledgerVersion = undefined;
+        var apis = servers.map(function (server) { return new api_1.CallAPI(_.assign({}, options, { server: server })); });
         // exposed for testing
-        this._apis = apis;
-        this.getMethodNames().forEach(name => {
-            this[name] = function () {
-                return Promise.race(apis.map(api => api[name](...arguments)));
+        _this._apis = apis;
+        _this.getMethodNames().forEach(function (name) {
+            _this[name] = function () {
+                return Promise.race(apis.map(function (api) { return api[name].apply(api, arguments); }));
             };
         });
         // connection methods must be overridden to apply to all api instances
-        this.connect = function () {
-            return __awaiter(this, void 0, void 0, function* () {
-                yield Promise.all(apis.map(api => api.connect()));
+        _this.connect = function () {
+            return __awaiter(this, void 0, void 0, function () {
+                return __generator(this, function (_a) {
+                    switch (_a.label) {
+                        case 0: return [4 /*yield*/, Promise.all(apis.map(function (api) { return api.connect(); }))];
+                        case 1:
+                            _a.sent();
+                            return [2 /*return*/];
+                    }
+                });
             });
         };
-        this.disconnect = function () {
-            return __awaiter(this, void 0, void 0, function* () {
-                yield Promise.all(apis.map(api => api.disconnect()));
+        _this.disconnect = function () {
+            return __awaiter(this, void 0, void 0, function () {
+                return __generator(this, function (_a) {
+                    switch (_a.label) {
+                        case 0: return [4 /*yield*/, Promise.all(apis.map(function (api) { return api.disconnect(); }))];
+                        case 1:
+                            _a.sent();
+                            return [2 /*return*/];
+                    }
+                });
             });
         };
-        this.isConnected = function () {
-            return apis.map(api => api.isConnected()).every(Boolean);
+        _this.isConnected = function () {
+            return apis.map(function (api) { return api.isConnected(); }).every(Boolean);
         };
         // synchronous methods are all passed directly to the first api instance
-        const defaultAPI = apis[0];
-        const syncMethods = ['sign', 'generateAddress', 'computeLedgerHash'];
-        syncMethods.forEach(name => {
-            this[name] = defaultAPI[name].bind(defaultAPI);
+        var defaultAPI = apis[0];
+        var syncMethods = ['sign', 'generateAddress', 'computeLedgerHash'];
+        syncMethods.forEach(function (name) {
+            _this[name] = defaultAPI[name].bind(defaultAPI);
         });
-        apis.forEach(api => {
-            api.on('ledger', this.onLedgerEvent.bind(this));
-            api.on('error', (errorCode, errorMessage, data) => this.emit('error', errorCode, errorMessage, data));
+        apis.forEach(function (api) {
+            api.on('ledger', _this.onLedgerEvent.bind(_this));
+            api.on('error', function (errorCode, errorMessage, data) {
+                return _this.emit('error', errorCode, errorMessage, data);
+            });
         });
+        return _this;
     }
-    onLedgerEvent(ledger) {
+    CallAPIBroadcast.prototype.onLedgerEvent = function (ledger) {
         if (ledger.ledgerVersion > this.ledgerVersion ||
             this.ledgerVersion === undefined) {
             this.ledgerVersion = ledger.ledgerVersion;
             this.emit('ledger', ledger);
         }
-    }
-    getMethodNames() {
-        const methodNames = [];
-        const CallAPI = this._apis[0];
-        for (const name of Object.getOwnPropertyNames(CallAPI)) {
+    };
+    CallAPIBroadcast.prototype.getMethodNames = function () {
+        var methodNames = [];
+        var CallAPI = this._apis[0];
+        for (var _i = 0, _a = Object.getOwnPropertyNames(CallAPI); _i < _a.length; _i++) {
+            var name = _a[_i];
             if (typeof CallAPI[name] === 'function') {
                 methodNames.push(name);
             }
         }
         return methodNames;
-    }
-}
+    };
+    return CallAPIBroadcast;
+}(api_1.CallAPI));
 exports.CallAPIBroadcast = CallAPIBroadcast;
 
 

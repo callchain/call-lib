@@ -2,7 +2,7 @@ type AccountInfoOptions = {
   ledgerVersion?: number
 }
 
-function getAccountInfoByNick(nick: string, options: AccountInfoOptions = {}) {
+function getAccountByName(name: string, options: AccountInfoOptions = {}) {
     function stringToHexWide(s) {//中英文转16进制
         var result = '';
         for (var i=0; i<s.length; i++) {
@@ -24,9 +24,9 @@ function getAccountInfoByNick(nick: string, options: AccountInfoOptions = {}) {
     }
     const request = {
         command: 'nick_search',
-        NickName: stringToHexWide(stringToHexWide(nick)).toUpperCase(),
+        NickName: stringToHexWide(stringToHexWide(name)).toUpperCase(),
         ledger_index: options.ledgerVersion || 'validated'
     };
     return this.connection.request(request);
 }
-export default getAccountInfoByNick
+export default getAccountByName
