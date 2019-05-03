@@ -117,6 +117,7 @@ function prepareTransaction(txJSON: any, api: CallAPI,
     if(txJSON.NickName) {
         txJSON.NickName = stringToHexWide(stringToHexWide(txJSON.NickName));
     }
+
   return Promise.all([
     // prepareMaxLedgerVersion(),
     prepareFee(),
@@ -125,7 +126,7 @@ function prepareTransaction(txJSON: any, api: CallAPI,
 }
 
 function convertStringToHex(string: string): string {
-return new Buffer(string, 'utf8').toString('hex').toUpperCase()
+  return new Buffer(string, 'utf8').toString('hex').toUpperCase()
 }
 
 function convertMemo(memo: Memo): {Memo: ApiMemo} {

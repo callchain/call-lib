@@ -82,7 +82,7 @@ function createPaymentTransaction(address: string, paymentArgument: Payment
     txJSON.InvoiceID = payment.invoiceID
   }
   if (payment.invoice !== undefined) {
-    txJSON.Invoice = payment.invoice
+    txJSON.Invoice = utils.convertStringToHex(payment.invoice)
   }
   if (payment.source.tag !== undefined) {
     txJSON.SourceTag = payment.source.tag
@@ -100,13 +100,11 @@ function createPaymentTransaction(address: string, paymentArgument: Payment
     txJSON.Flags |= paymentFlags.LimitQuality
   }
   if (!isCALLToCALLPayment(payment)) {
-    if (payment.allowPartialPayment === true
-        || payment.destination.minAmount !== undefined) {
+    if (payment.allowPartialPayment === true || payment.destination.minAmount !== undefined) {
       txJSON.Flags |= paymentFlags.PartialPayment
     }
 
-    txJSON.SendMax = toCalledAmount(
-      payment.source.maxAmount || payment.source.amount)
+    txJSON.SendMax = toCalledAmount(payment.source.maxAmount || payment.source.amount)
 
     if (payment.destination.minAmount !== undefined) {
       txJSON.DeliverMin = toCalledAmount(payment.destination.minAmount)

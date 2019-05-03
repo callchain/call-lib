@@ -91,7 +91,8 @@ function createIssueSetTransactionWithoutMemos(
   const txJSON: any = {
     TransactionType: 'IssueSet',
     Account: account,
-    Total: issueset.total
+    Total: issueset.total,
+    Flags: 0
   }
 
   setTransactionFlags(txJSON, _.omit(issueset, 'memos'))
