@@ -1,9 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const assert = require("assert");
-const utils_1 = require("./utils");
-const common_1 = require("../../common");
-const flags = common_1.txFlags.TrustSet;
+var assert = require("assert");
+var utils_1 = require("./utils");
+var common_1 = require("../../common");
+var flags = common_1.txFlags.TrustSet;
 function parseFlag(flagsValue, trueValue, falseValue) {
     if (flagsValue & trueValue) {
         return true;

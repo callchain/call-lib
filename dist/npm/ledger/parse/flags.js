@@ -1,11 +1,11 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const orderFlags = {
+var orderFlags = {
     Passive: 0x00010000,
     Sell: 0x00020000 // offer was placed as a sell
 };
 exports.orderFlags = orderFlags;
-const trustlineFlags = {
+var trustlineFlags = {
     LowReserve: 0x00010000,
     HighReserve: 0x00020000,
     LowAuth: 0x00040000,

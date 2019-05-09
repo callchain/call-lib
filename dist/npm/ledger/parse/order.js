@@ -1,17 +1,17 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const assert = require("assert");
-const utils_1 = require("./utils");
-const amount_1 = require("./amount");
-const common_1 = require("../../common");
-const flags = common_1.txFlags.OfferCreate;
+var assert = require("assert");
+var utils_1 = require("./utils");
+var amount_1 = require("./amount");
+var common_1 = require("../../common");
+var flags = common_1.txFlags.OfferCreate;
 function parseOrder(tx) {
     assert(tx.TransactionType === 'OfferCreate');
-    const direction = (tx.Flags & flags.Sell) === 0 ? 'buy' : 'sell';
-    const takerGetsAmount = amount_1.default(tx.TakerGets);
-    const takerPaysAmount = amount_1.default(tx.TakerPays);
-    const quantity = (direction === 'buy') ? takerPaysAmount : takerGetsAmount;
-    const totalPrice = (direction === 'buy') ? takerGetsAmount : takerPaysAmount;
+    var direction = (tx.Flags & flags.Sell) === 0 ? 'buy' : 'sell';
+    var takerGetsAmount = amount_1.default(tx.TakerGets);
+    var takerPaysAmount = amount_1.default(tx.TakerPays);
+    var quantity = (direction === 'buy') ? takerPaysAmount : takerGetsAmount;
+    var totalPrice = (direction === 'buy') ? takerGetsAmount : takerPaysAmount;
     return common_1.removeUndefined({
         direction: direction,
         quantity: quantity,

@@ -1,10 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = require("lodash");
-const assert = require("assert");
-const utils = require("./utils");
-const common_1 = require("../../common");
-const amount_1 = require("./amount");
+var _ = require("lodash");
+var assert = require("assert");
+var utils = require("./utils");
+var common_1 = require("../../common");
+var amount_1 = require("./amount");
 function isNoDirectCall(tx) {
     return (tx.Flags & common_1.txFlags.Payment.NoCallDirect) !== 0;
 }
@@ -17,12 +17,12 @@ function removeGenericCounterparty(amount, address) {
 }
 function parsePayment(tx) {
     assert(tx.TransactionType === 'Payment');
-    const source = {
+    var source = {
         address: tx.Account,
         maxAmount: removeGenericCounterparty(amount_1.default(tx.SendMax || tx.Amount), tx.Account),
         tag: tx.SourceTag
     };
-    const destination = {
+    var destination = {
         address: tx.Destination,
         amount: removeGenericCounterparty(amount_1.default(tx.Amount), tx.Destination),
         tag: tx.DestinationTag

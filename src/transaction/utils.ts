@@ -36,7 +36,7 @@ function prepareTransaction(txJSON: any, api: CallAPI,
   common.validate.instructions(instructions)
 
   const account = txJSON.Account
-  setCanonicalFlag(txJSON)
+  //setCanonicalFlag(txJSON)
 
   // function prepareMaxLedgerVersion(): Promise<Object> {
   //   if (instructions.maxLedgerVersion !== undefined) {

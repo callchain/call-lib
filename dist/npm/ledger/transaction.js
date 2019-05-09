@@ -1,29 +1,29 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = require("lodash");
-const utils = require("./utils");
-const transaction_1 = require("./parse/transaction");
-const common_1 = require("../common");
+var _ = require("lodash");
+var utils = require("./utils");
+var transaction_1 = require("./parse/transaction");
+var common_1 = require("../common");
 function attachTransactionDate(connection, tx) {
     if (tx.date) {
         return Promise.resolve(tx);
     }
-    const ledgerVersion = tx.ledger_index || tx.LedgerSequence;
+    var ledgerVersion = tx.ledger_index || tx.LedgerSequence;
     if (!ledgerVersion) {
-        return new Promise(() => {
+        return new Promise(function () {
             throw new common_1.errors.NotFoundError('ledger_index and LedgerSequence not found in tx');
         });
     }
-    const request = {
+    var request = {
         command: 'ledger',
         ledger_index: ledgerVersion
     };
-    return connection.request(request).then(data => {
+    return connection.request(request).then(function (data) {
         if (typeof data.ledger.close_time === 'number') {
             return _.assign({ date: data.ledger.close_time }, tx);
         }
         throw new common_1.errors.UnexpectedError('Ledger missing close_time');
-    }).catch(error => {
+    }).catch(function (error) {
         if (error instanceof common_1.errors.UnexpectedError) {
             throw error;
         }
@@ -37,13 +37,13 @@ function isTransactionInRange(tx, options) {
             || tx.ledger_index <= options.maxLedgerVersion);
 }
 function convertError(connection, options, error) {
-    const _error = (error.message === 'txnNotFound') ?
+    var _error = (error.message === 'txnNotFound') ?
         new common_1.errors.NotFoundError('Transaction not found') : error;
     if (_error instanceof common_1.errors.NotFoundError) {
-        return utils.hasCompleteLedgerRange(connection, options.minLedgerVersion, options.maxLedgerVersion).then(hasCompleteLedgerRange => {
+        return utils.hasCompleteLedgerRange(connection, options.minLedgerVersion, options.maxLedgerVersion).then(function (hasCompleteLedgerRange) {
             if (!hasCompleteLedgerRange) {
                 return utils.isPendingLedgerVersion(connection, options.maxLedgerVersion)
-                    .then(isPendingLedgerVersion => {
+                    .then(function (isPendingLedgerVersion) {
                     return isPendingLedgerVersion ?
                         new common_1.errors.PendingLedgerVersionError() :
                         new common_1.errors.MissingLedgerHistoryError();
@@ -60,17 +60,21 @@ function formatResponse(options, tx) {
     }
     return transaction_1.default(tx);
 }
-function getTransaction(id, options = {}) {
-    common_1.validate.getTransaction({ id, options });
-    const request = {
+function getTransaction(id, options) {
+    var _this = this;
+    if (options === void 0) { options = {}; }
+    common_1.validate.getTransaction({ id: id, options: options });
+    var request = {
         command: 'tx',
         transaction: id,
         binary: false
     };
-    return utils.ensureLedgerVersion.call(this, options).then(_options => {
-        return this.connection.request(request).then((tx) => attachTransactionDate(this.connection, tx)).then(_.partial(formatResponse, _options))
-            .catch(error => {
-            return convertError(this.connection, _options, error).then(_error => {
+    return utils.ensureLedgerVersion.call(this, options).then(function (_options) {
+        return _this.connection.request(request).then(function (tx) {
+            return attachTransactionDate(_this.connection, tx);
+        }).then(_.partial(formatResponse, _options))
+            .catch(function (error) {
+            return convertError(_this.connection, _options, error).then(function (_error) {
                 throw _error;
             });
         });

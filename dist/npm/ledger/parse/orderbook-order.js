@@ -1,40 +1,40 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = require("lodash");
-const utils_1 = require("./utils");
-const common_1 = require("../../common");
-const flags_1 = require("./flags");
-const amount_1 = require("./amount");
+var _ = require("lodash");
+var utils_1 = require("./utils");
+var common_1 = require("../../common");
+var flags_1 = require("./flags");
+var amount_1 = require("./amount");
 function parseOrderbookOrder(order) {
-    const direction = (order.Flags & flags_1.orderFlags.Sell) === 0 ? 'buy' : 'sell';
-    const takerGetsAmount = amount_1.default(order.TakerGets);
-    const takerPaysAmount = amount_1.default(order.TakerPays);
-    const quantity = (direction === 'buy') ? takerPaysAmount : takerGetsAmount;
-    const totalPrice = (direction === 'buy') ? takerGetsAmount : takerPaysAmount;
+    var direction = (order.Flags & flags_1.orderFlags.Sell) === 0 ? 'buy' : 'sell';
+    var takerGetsAmount = amount_1.default(order.TakerGets);
+    var takerPaysAmount = amount_1.default(order.TakerPays);
+    var quantity = (direction === 'buy') ? takerPaysAmount : takerGetsAmount;
+    var totalPrice = (direction === 'buy') ? takerGetsAmount : takerPaysAmount;
     // note: immediateOrCancel and fillOrKill orders cannot enter the order book
     // so we can omit those flags here
-    const specification = common_1.removeUndefined({
+    var specification = common_1.removeUndefined({
         direction: direction,
         quantity: quantity,
         totalPrice: totalPrice,
         passive: ((order.Flags & flags_1.orderFlags.Passive) !== 0) || undefined,
         expirationTime: utils_1.parseTimestamp(order.Expiration)
     });
-    const properties = {
+    var properties = {
         maker: order.Account,
         sequence: order.Sequence,
         makerExchangeRate: utils_1.adjustQualityForCALL(order.quality, takerGetsAmount.currency, takerPaysAmount.currency)
     };
-    const takerGetsFunded = order.taker_gets_funded ?
+    var takerGetsFunded = order.taker_gets_funded ?
         amount_1.default(order.taker_gets_funded) : undefined;
-    const takerPaysFunded = order.taker_pays_funded ?
+    var takerPaysFunded = order.taker_pays_funded ?
         amount_1.default(order.taker_pays_funded) : undefined;
-    const available = common_1.removeUndefined({
+    var available = common_1.removeUndefined({
         fundedAmount: takerGetsFunded,
         priceOfFundedAmount: takerPaysFunded
     });
-    const state = _.isEmpty(available) ? undefined : available;
-    return common_1.removeUndefined({ specification, properties, state });
+    var state = _.isEmpty(available) ? undefined : available;
+    return common_1.removeUndefined({ specification: specification, properties: properties, state: state });
 }
 exports.default = parseOrderbookOrder;
 //# sourceMappingURL=orderbook-order.js.map

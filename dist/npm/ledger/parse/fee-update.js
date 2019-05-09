@@ -1,9 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const bignumber_js_1 = require("bignumber.js");
-const common_1 = require("../../common");
+var bignumber_js_1 = require("bignumber.js");
+var common_1 = require("../../common");
 function parseFeeUpdate(tx) {
-    const baseFeeDrops = (new bignumber_js_1.default(tx.BaseFee, 16)).toString();
+    var baseFeeDrops = (new bignumber_js_1.default(tx.BaseFee, 16)).toString();
     return {
         baseFeeCALL: common_1.dropsToCall(baseFeeDrops),
         referenceFeeUnits: tx.ReferenceFeeUnits,

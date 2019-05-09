@@ -1,15 +1,15 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = require("lodash");
-const utils = require("./utils");
-const offerFlags = utils.common.txFlags.OfferCreate;
-const common_1 = require("../common");
+var _ = require("lodash");
+var utils = require("./utils");
+var offerFlags = utils.common.txFlags.OfferCreate;
+var common_1 = require("../common");
 function createOrderTransaction(account, order) {
-    const takerPays = utils.common.toCalledAmount(order.direction === 'buy' ?
+    var takerPays = utils.common.toCalledAmount(order.direction === 'buy' ?
         order.quantity : order.totalPrice);
-    const takerGets = utils.common.toCalledAmount(order.direction === 'buy' ?
+    var takerGets = utils.common.toCalledAmount(order.direction === 'buy' ?
         order.totalPrice : order.quantity);
-    const txJSON = {
+    var txJSON = {
         TransactionType: 'OfferCreate',
         Account: account,
         TakerGets: takerGets,
@@ -39,9 +39,10 @@ function createOrderTransaction(account, order) {
     }
     return txJSON;
 }
-function prepareOrder(address, order, instructions = {}) {
+function prepareOrder(address, order, instructions) {
+    if (instructions === void 0) { instructions = {}; }
     // validate.prepareOrder({address, order, instructions})
-    const txJSON = createOrderTransaction(address, order);
+    var txJSON = createOrderTransaction(address, order);
     return utils.prepareTransaction(txJSON, this, instructions);
 }
 exports.default = prepareOrder;

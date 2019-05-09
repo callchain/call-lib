@@ -1,47 +1,63 @@
 "use strict";
+var __extends = (this && this.__extends) || (function () {
+    var extendStatics = function (d, b) {
+        extendStatics = Object.setPrototypeOf ||
+            ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
+            function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
+        return extendStatics(d, b);
+    };
+    return function (d, b) {
+        extendStatics(d, b);
+        function __() { this.constructor = d; }
+        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = require("lodash");
-const events_1 = require("events");
-const url_1 = require("url");
-const WebSocket = require("ws");
-const rangeset_1 = require("./rangeset");
-const errors_1 = require("./errors");
+var _ = require("lodash");
+var events_1 = require("events");
+var url_1 = require("url");
+var WebSocket = require("ws");
+var rangeset_1 = require("./rangeset");
+var errors_1 = require("./errors");
 function isStreamMessageType(type) {
     return type === 'ledgerClosed' ||
         type === 'transaction' ||
         type === 'path_find';
 }
-class Connection extends events_1.EventEmitter {
-    constructor(url, options = {}) {
-        super();
-        this._isReady = false;
-        this._ws = null;
-        this._ledgerVersion = null;
-        this._availableLedgerVersions = new rangeset_1.default();
-        this._nextRequestID = 1;
-        this._retry = 0;
-        this._retryTimer = null;
-        this._onOpenErrorBound = null;
-        this._onUnexpectedCloseBound = null;
-        this._fee_base = null;
-        this._fee_ref = null;
-        this.setMaxListeners(Infinity);
-        this._url = url;
-        this._trace = options.trace || false;
-        if (this._trace) {
+var Connection = /** @class */ (function (_super) {
+    __extends(Connection, _super);
+    function Connection(url, options) {
+        if (options === void 0) { options = {}; }
+        var _this = _super.call(this) || this;
+        _this._isReady = false;
+        _this._ws = null;
+        _this._ledgerVersion = null;
+        _this._availableLedgerVersions = new rangeset_1.default();
+        _this._nextRequestID = 1;
+        _this._retry = 0;
+        _this._retryTimer = null;
+        _this._onOpenErrorBound = null;
+        _this._onUnexpectedCloseBound = null;
+        _this._fee_base = null;
+        _this._fee_ref = null;
+        _this.setMaxListeners(Infinity);
+        _this._url = url;
+        _this._trace = options.trace || false;
+        if (_this._trace) {
             // for easier unit testing
-            this._console = console;
+            _this._console = console;
         }
-        this._proxyURL = options.proxy;
-        this._proxyAuthorization = options.proxyAuthorization;
-        this._authorization = options.authorization;
-        this._trustedCertificates = options.trustedCertificates;
-        this._key = options.key;
-        this._passphrase = options.passphrase;
-        this._certificate = options.certificate;
-        this._timeout = options.timeout || (20 * 1000);
+        _this._proxyURL = options.proxy;
+        _this._proxyAuthorization = options.proxyAuthorization;
+        _this._authorization = options.authorization;
+        _this._trustedCertificates = options.trustedCertificates;
+        _this._key = options.key;
+        _this._passphrase = options.passphrase;
+        _this._certificate = options.certificate;
+        _this._timeout = options.timeout || (20 * 1000);
+        return _this;
     }
-    _updateLedgerVersions(data) {
+    Connection.prototype._updateLedgerVersions = function (data) {
         this._ledgerVersion = Number(data.ledger_index);
         if (data.validated_ledgers) {
             this._availableLedgerVersions.reset();
@@ -50,14 +66,14 @@ class Connection extends events_1.EventEmitter {
         else {
             this._availableLedgerVersions.addValue(this._ledgerVersion);
         }
-    }
-    _updateFees(data) {
+    };
+    Connection.prototype._updateFees = function (data) {
         this._fee_base = Number(data.fee_base);
         this._fee_ref = Number(data.fee_ref);
-    }
+    };
     // return value is array of arguments to Connection.emit
-    _parseMessage(message) {
-        const data = JSON.parse(message);
+    Connection.prototype._parseMessage = function (message) {
+        var data = JSON.parse(message);
         if (data.type === 'response') {
             if (!(Number.isInteger(data.id) && data.id >= 0)) {
                 throw new errors_1.ResponseFormatError('valid id not found in response');
@@ -75,12 +91,12 @@ class Connection extends events_1.EventEmitter {
             return ['error', data.error, data.error_message, data]; // e.g. slowDown
         }
         throw new errors_1.ResponseFormatError('unrecognized message type: ' + data.type);
-    }
-    _onMessage(message) {
+    };
+    Connection.prototype._onMessage = function (message) {
         if (this._trace) {
             this._console.log(message);
         }
-        let parameters;
+        var parameters;
         try {
             parameters = this._parseMessage(message);
         }
@@ -91,17 +107,25 @@ class Connection extends events_1.EventEmitter {
         // we don't want this inside the try/catch or exceptions in listener
         // will be caught
         this.emit.apply(this, parameters);
-    }
-    get _state() {
-        return this._ws ? this._ws.readyState : WebSocket.CLOSED;
-    }
-    get _shouldBeConnected() {
-        return this._ws !== null;
-    }
-    isConnected() {
+    };
+    Object.defineProperty(Connection.prototype, "_state", {
+        get: function () {
+            return this._ws ? this._ws.readyState : WebSocket.CLOSED;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Connection.prototype, "_shouldBeConnected", {
+        get: function () {
+            return this._ws !== null;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Connection.prototype.isConnected = function () {
         return this._state === WebSocket.OPEN && this._isReady;
-    }
-    _onUnexpectedClose(beforeOpen, resolve, reject, code) {
+    };
+    Connection.prototype._onUnexpectedClose = function (beforeOpen, resolve, reject, code) {
         if (this._onOpenErrorBound) {
             this._ws.removeListener('error', this._onOpenErrorBound);
             this._onOpenErrorBound = null;
@@ -121,8 +145,8 @@ class Connection extends events_1.EventEmitter {
             this.emit('disconnected', code || 1006);
             this._retryConnect();
         }
-    }
-    _calculateTimeout(retriesCount) {
+    };
+    Connection.prototype._calculateTimeout = function (retriesCount) {
         return (retriesCount < 40)
             // First, for 2 seconds: 20 times per second
             ? (1000 / 20)
@@ -134,22 +158,24 @@ class Connection extends events_1.EventEmitter {
                     ? (10 * 1000)
                     // Then: once every 30 seconds
                     : (30 * 1000);
-    }
-    _retryConnect() {
+    };
+    Connection.prototype._retryConnect = function () {
+        var _this = this;
         this._retry += 1;
-        const retryTimeout = this._calculateTimeout(this._retry);
-        this._retryTimer = setTimeout(() => {
-            this.emit('reconnecting', this._retry);
-            this.connect().catch(this._retryConnect.bind(this));
+        var retryTimeout = this._calculateTimeout(this._retry);
+        this._retryTimer = setTimeout(function () {
+            _this.emit('reconnecting', _this._retry);
+            _this.connect().catch(_this._retryConnect.bind(_this));
         }, retryTimeout);
-    }
-    _clearReconnectTimer() {
+    };
+    Connection.prototype._clearReconnectTimer = function () {
         if (this._retryTimer !== null) {
             clearTimeout(this._retryTimer);
             this._retryTimer = null;
         }
-    }
-    _onOpen() {
+    };
+    Connection.prototype._onOpen = function () {
+        var _this = this;
         if (!this._ws) {
             return Promise.reject(new errors_1.DisconnectedError());
         }
@@ -157,71 +183,71 @@ class Connection extends events_1.EventEmitter {
             this._ws.removeListener('error', this._onOpenErrorBound);
             this._onOpenErrorBound = null;
         }
-        const request = {
+        var request = {
             command: 'subscribe',
             streams: ['ledger']
         };
-        return this.request(request).then((data) => {
+        return this.request(request).then(function (data) {
             if (_.isEmpty(data) || !data.ledger_index) {
-                return this._disconnect(false).then(() => {
+                return _this._disconnect(false).then(function () {
                     throw new errors_1.CalledNotInitializedError('Called not initialized');
                 });
             }
-            this._updateLedgerVersions(data);
-            this._updateFees(data);
-            this._rebindOnUnxpectedClose();
-            this._retry = 0;
-            this._ws.on('error', error => {
+            _this._updateLedgerVersions(data);
+            _this._updateFees(data);
+            _this._rebindOnUnxpectedClose();
+            _this._retry = 0;
+            _this._ws.on('error', function (error) {
                 // TODO: "type" does not exist on official error type, safe to remove?
                 if (process.browser && error && error.type === 'error') {
                     // we are in browser, ignore error - `close` event will be fired
                     // after error
                     return;
                 }
-                this.emit('error', 'websocket', error.message, error);
+                _this.emit('error', 'websocket', error.message, error);
             });
-            const request2 = {
+            var request2 = {
                 command: 'subscribe',
                 streams: ['transactions']
             };
-            return this.request(request2).then((data) => {
-                this._ws.on('error', error => {
+            return _this.request(request2).then(function (data) {
+                _this._ws.on('error', function (error) {
                     if (process.browser && error && error.type === 'error') {
-                     return;
+                        return;
                     }
-                    this.emit('error', 'websocket', error.message, error);
+                    _this.emit('error', 'websocket', error.message, error);
                 });
-                this._isReady = true;
-                this.emit('connected');
+                _this._isReady = true;
+                _this.emit('connected');
                 return undefined;
             });
         });
-    }
-    _rebindOnUnxpectedClose() {
+    };
+    Connection.prototype._rebindOnUnxpectedClose = function () {
         if (this._onUnexpectedCloseBound) {
             this._ws.removeListener('close', this._onUnexpectedCloseBound);
         }
         this._onUnexpectedCloseBound =
             this._onUnexpectedClose.bind(this, false, null, null);
         this._ws.once('close', this._onUnexpectedCloseBound);
-    }
-    _unbindOnUnxpectedClose() {
+    };
+    Connection.prototype._unbindOnUnxpectedClose = function () {
         if (this._onUnexpectedCloseBound) {
             this._ws.removeListener('close', this._onUnexpectedCloseBound);
         }
         this._onUnexpectedCloseBound = null;
-    }
-    _onOpenError(reject, error) {
+    };
+    Connection.prototype._onOpenError = function (reject, error) {
         this._onOpenErrorBound = null;
         this._unbindOnUnxpectedClose();
         reject(new errors_1.NotConnectedError(error && error.message));
-    }
-    _createWebSocket() {
-        const options = {};
+    };
+    Connection.prototype._createWebSocket = function () {
+        var options = {};
         if (this._proxyURL !== undefined) {
-            const parsedURL = url_1.parse(this._url);
-            const parsedProxyURL = url_1.parse(this._proxyURL);
-            const proxyOverrides = _.omitBy({
+            var parsedURL = url_1.parse(this._url);
+            var parsedProxyURL = url_1.parse(this._proxyURL);
+            var proxyOverrides = _.omitBy({
                 secureEndpoint: (parsedURL.protocol === 'wss:'),
                 secureProxy: (parsedProxyURL.protocol === 'https:'),
                 auth: this._proxyAuthorization,
@@ -230,8 +256,8 @@ class Connection extends events_1.EventEmitter {
                 passphrase: this._passphrase,
                 cert: this._certificate
             }, _.isUndefined);
-            const proxyOptions = _.assign({}, parsedProxyURL, proxyOverrides);
-            let HttpsProxyAgent;
+            var proxyOptions = _.assign({}, parsedProxyURL, proxyOverrides);
+            var HttpsProxyAgent = void 0;
             try {
                 HttpsProxyAgent = require('https-proxy-agent');
             }
@@ -241,38 +267,39 @@ class Connection extends events_1.EventEmitter {
             options.agent = new HttpsProxyAgent(proxyOptions);
         }
         if (this._authorization !== undefined) {
-            const base64 = new Buffer(this._authorization).toString('base64');
-            options.headers = { Authorization: `Basic ${base64}` };
+            var base64 = new Buffer(this._authorization).toString('base64');
+            options.headers = { Authorization: "Basic " + base64 };
         }
-        const optionsOverrides = _.omitBy({
+        var optionsOverrides = _.omitBy({
             ca: this._trustedCertificates,
             key: this._key,
             passphrase: this._passphrase,
             cert: this._certificate
         }, _.isUndefined);
-        const websocketOptions = _.assign({}, options, optionsOverrides);
-        const websocket = new WebSocket(this._url, null, websocketOptions);
+        var websocketOptions = _.assign({}, options, optionsOverrides);
+        var websocket = new WebSocket(this._url, null, websocketOptions);
         // we will have a listener for each outstanding request,
         // so we have to raise the limit (the default is 10)
         if (typeof websocket.setMaxListeners === 'function') {
             websocket.setMaxListeners(Infinity);
         }
         return websocket;
-    }
-    connect() {
+    };
+    Connection.prototype.connect = function () {
+        var _this = this;
         this._clearReconnectTimer();
-        return new Promise((resolve, reject) => {
-            if (!this._url) {
+        return new Promise(function (resolve, reject) {
+            if (!_this._url) {
                 reject(new errors_1.ConnectionError('Cannot connect because no server was specified'));
             }
-            if (this._state === WebSocket.OPEN) {
+            if (_this._state === WebSocket.OPEN) {
                 resolve();
             }
-            else if (this._state === WebSocket.CONNECTING) {
-                this._ws.once('open', resolve);
+            else if (_this._state === WebSocket.CONNECTING) {
+                _this._ws.once('open', resolve);
             }
             else {
-                this._ws = this._createWebSocket();
+                _this._ws = _this._createWebSocket();
                 // when an error causes the connection to close, the close event
                 // should still be emitted; the "ws" documentation says: "The close
                 // event is also emitted when then underlying net.Socket closes the
@@ -280,88 +307,92 @@ class Connection extends events_1.EventEmitter {
                 // In case if there is connection error (say, server is not responding)
                 // we must return this error to connection's caller. After successful
                 // opening, we will forward all errors to main api object.
-                this._onOpenErrorBound = this._onOpenError.bind(this, reject);
-                this._ws.once('error', this._onOpenErrorBound);
-                this._ws.on('message', this._onMessage.bind(this));
+                _this._onOpenErrorBound = _this._onOpenError.bind(_this, reject);
+                _this._ws.once('error', _this._onOpenErrorBound);
+                _this._ws.on('message', _this._onMessage.bind(_this));
                 // in browser close event can came before open event, so we must
                 // resolve connect's promise after reconnect in that case.
                 // after open event we will rebound _onUnexpectedCloseBound
                 // without resolve and reject functions
-                this._onUnexpectedCloseBound = this._onUnexpectedClose.bind(this, true, resolve, reject);
-                this._ws.once('close', this._onUnexpectedCloseBound);
-                this._ws.once('open', () => this._onOpen().then(resolve, reject));
+                _this._onUnexpectedCloseBound = _this._onUnexpectedClose.bind(_this, true, resolve, reject);
+                _this._ws.once('close', _this._onUnexpectedCloseBound);
+                _this._ws.once('open', function () { return _this._onOpen().then(resolve, reject); });
             }
         });
-    }
-    disconnect() {
+    };
+    Connection.prototype.disconnect = function () {
         return this._disconnect(true);
-    }
-    _disconnect(calledByUser) {
+    };
+    Connection.prototype._disconnect = function (calledByUser) {
+        var _this = this;
         if (calledByUser) {
             this._clearReconnectTimer();
             this._retry = 0;
         }
-        return new Promise(resolve => {
-            if (this._state === WebSocket.CLOSED) {
+        return new Promise(function (resolve) {
+            if (_this._state === WebSocket.CLOSED) {
                 resolve();
             }
-            else if (this._state === WebSocket.CLOSING) {
-                this._ws.once('close', resolve);
+            else if (_this._state === WebSocket.CLOSING) {
+                _this._ws.once('close', resolve);
             }
             else {
-                if (this._onUnexpectedCloseBound) {
-                    this._ws.removeListener('close', this._onUnexpectedCloseBound);
-                    this._onUnexpectedCloseBound = null;
+                if (_this._onUnexpectedCloseBound) {
+                    _this._ws.removeListener('close', _this._onUnexpectedCloseBound);
+                    _this._onUnexpectedCloseBound = null;
                 }
-                this._ws.once('close', code => {
-                    this._ws = null;
-                    this._isReady = false;
+                _this._ws.once('close', function (code) {
+                    _this._ws = null;
+                    _this._isReady = false;
                     if (calledByUser) {
-                        this.emit('disconnected', code || 1000); // 1000 - CLOSE_NORMAL
+                        _this.emit('disconnected', code || 1000); // 1000 - CLOSE_NORMAL
                     }
                     resolve();
                 });
-                this._ws.close();
+                _this._ws.close();
             }
         });
-    }
-    reconnect() {
-        return this.disconnect().then(() => this.connect());
-    }
-    _whenReady(promise) {
-        return new Promise((resolve, reject) => {
-            if (!this._shouldBeConnected) {
+    };
+    Connection.prototype.reconnect = function () {
+        var _this = this;
+        return this.disconnect().then(function () { return _this.connect(); });
+    };
+    Connection.prototype._whenReady = function (promise) {
+        var _this = this;
+        return new Promise(function (resolve, reject) {
+            if (!_this._shouldBeConnected) {
                 reject(new errors_1.NotConnectedError());
             }
-            else if (this._state === WebSocket.OPEN && this._isReady) {
+            else if (_this._state === WebSocket.OPEN && _this._isReady) {
                 promise.then(resolve, reject);
             }
             else {
-                this.once('connected', () => promise.then(resolve, reject));
+                _this.once('connected', function () { return promise.then(resolve, reject); });
             }
         });
-    }
-    getLedgerVersion() {
+    };
+    Connection.prototype.getLedgerVersion = function () {
         return this._whenReady(Promise.resolve(this._ledgerVersion));
-    }
-    hasLedgerVersions(lowLedgerVersion, highLedgerVersion) {
+    };
+    Connection.prototype.hasLedgerVersions = function (lowLedgerVersion, highLedgerVersion) {
         return this._whenReady(Promise.resolve(this._availableLedgerVersions.containsRange(lowLedgerVersion, highLedgerVersion || this._ledgerVersion)));
-    }
-    hasLedgerVersion(ledgerVersion) {
+    };
+    Connection.prototype.hasLedgerVersion = function (ledgerVersion) {
         return this.hasLedgerVersions(ledgerVersion, ledgerVersion);
-    }
-    getFeeBase() {
+    };
+    Connection.prototype.getFeeBase = function () {
         return this._whenReady(Promise.resolve(Number(this._fee_base)));
-    }
-    getFeeRef() {
+    };
+    Connection.prototype.getFeeRef = function () {
         return this._whenReady(Promise.resolve(Number(this._fee_ref)));
-    }
-    _send(message) {
+    };
+    Connection.prototype._send = function (message) {
+        var _this = this;
         if (this._trace) {
             this._console.log(message);
         }
-        return new Promise((resolve, reject) => {
-            this._ws.send(message, undefined, error => {
+        return new Promise(function (resolve, reject) {
+            _this._ws.send(message, undefined, function (error) {
                 if (error) {
                     reject(new errors_1.DisconnectedError(error.message));
                 }
@@ -370,17 +401,18 @@ class Connection extends events_1.EventEmitter {
                 }
             });
         });
-    }
-    request(request, timeout) {
-        return new Promise((resolve, reject) => {
-            if (!this._shouldBeConnected) {
+    };
+    Connection.prototype.request = function (request, timeout) {
+        var _this = this;
+        return new Promise(function (resolve, reject) {
+            if (!_this._shouldBeConnected) {
                 reject(new errors_1.NotConnectedError());
             }
-            let timer = null;
-            const self = this;
-            const id = this._nextRequestID;
-            this._nextRequestID += 1;
-            const eventName = id.toString();
+            var timer = null;
+            var self = _this;
+            var id = _this._nextRequestID;
+            _this._nextRequestID += 1;
+            var eventName = id.toString();
             function onDisconnect() {
                 clearTimeout(timer);
                 self.removeAllListeners(eventName);
@@ -401,7 +433,7 @@ class Connection extends events_1.EventEmitter {
                 cleanup();
                 reject(error);
             }
-            this.once(eventName, response => {
+            _this.once(eventName, function (response) {
                 if (response.status === 'error') {
                     _reject(new errors_1.CalledError(response.error));
                 }
@@ -412,15 +444,16 @@ class Connection extends events_1.EventEmitter {
                     _reject(new errors_1.ResponseFormatError('unrecognized status: ' + response.status));
                 }
             });
-            this._ws.once('close', onDisconnect);
+            _this._ws.once('close', onDisconnect);
             // JSON.stringify automatically removes keys with value of 'undefined'
-            const message = JSON.stringify(Object.assign({}, request, { id }));
-            this._whenReady(this._send(message)).then(() => {
-                const delay = timeout || this._timeout;
-                timer = setTimeout(() => _reject(new errors_1.TimeoutError()), delay);
+            var message = JSON.stringify(Object.assign({}, request, { id: id }));
+            _this._whenReady(_this._send(message)).then(function () {
+                var delay = timeout || _this._timeout;
+                timer = setTimeout(function () { return _reject(new errors_1.TimeoutError()); }, delay);
             }).catch(_reject);
         });
-    }
-}
+    };
+    return Connection;
+}(events_1.EventEmitter));
 exports.default = Connection;
 //# sourceMappingURL=connection.js.map

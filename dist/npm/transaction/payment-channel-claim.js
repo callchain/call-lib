@@ -1,11 +1,11 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const utils = require("./utils");
-const ValidationError = utils.common.errors.ValidationError;
-const claimFlags = utils.common.txFlags.PaymentChannelClaim;
-const common_1 = require("../common");
+var utils = require("./utils");
+var ValidationError = utils.common.errors.ValidationError;
+var claimFlags = utils.common.txFlags.PaymentChannelClaim;
+var common_1 = require("../common");
 function createPaymentChannelClaimTransaction(account, claim) {
-    const txJSON = {
+    var txJSON = {
         Account: account,
         TransactionType: 'PaymentChannelClaim',
         Channel: claim.channel,
@@ -39,9 +39,10 @@ function createPaymentChannelClaimTransaction(account, claim) {
     }
     return txJSON;
 }
-function preparePaymentChannelClaim(address, paymentChannelClaim, instructions = {}) {
-    common_1.validate.preparePaymentChannelClaim({ address, paymentChannelClaim, instructions });
-    const txJSON = createPaymentChannelClaimTransaction(address, paymentChannelClaim);
+function preparePaymentChannelClaim(address, paymentChannelClaim, instructions) {
+    if (instructions === void 0) { instructions = {}; }
+    common_1.validate.preparePaymentChannelClaim({ address: address, paymentChannelClaim: paymentChannelClaim, instructions: instructions });
+    var txJSON = createPaymentChannelClaimTransaction(address, paymentChannelClaim);
     return utils.prepareTransaction(txJSON, this, instructions);
 }
 exports.default = preparePaymentChannelClaim;

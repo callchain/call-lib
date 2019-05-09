@@ -1,14 +1,14 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = require("lodash");
-const common_1 = require("../../common");
-const transaction_1 = require("./transaction");
+var _ = require("lodash");
+var common_1 = require("../../common");
+var transaction_1 = require("./transaction");
 function parseTransactionWrapper(ledgerVersion, tx) {
-    const transaction = _.assign({}, _.omit(tx, 'metaData'), {
+    var transaction = _.assign({}, _.omit(tx, 'metaData'), {
         meta: tx.metaData,
         ledger_index: ledgerVersion
     });
-    const result = transaction_1.default(transaction);
+    var result = transaction_1.default(transaction);
     if (!result.outcome.ledgerVersion) {
         result.outcome.ledgerVersion = ledgerVersion;
     }
@@ -36,7 +36,7 @@ function parseState(state) {
     return { rawState: JSON.stringify(state) };
 }
 function parseLedger(ledger) {
-    const ledgerVersion = parseInt(ledger.ledger_index || ledger.seqNum, 10);
+    var ledgerVersion = parseInt(ledger.ledger_index || ledger.seqNum, 10);
     return common_1.removeUndefined(Object.assign({
         stateHash: ledger.account_hash,
         closeTime: common_1.callTimeToISO8601(ledger.close_time),

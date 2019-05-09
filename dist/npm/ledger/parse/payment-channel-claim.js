@@ -1,9 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const assert = require("assert");
-const common_1 = require("../../common");
-const amount_1 = require("./amount");
-const claimFlags = common_1.txFlags.PaymentChannelClaim;
+var assert = require("assert");
+var common_1 = require("../../common");
+var amount_1 = require("./amount");
+var claimFlags = common_1.txFlags.PaymentChannelClaim;
 function parsePaymentChannelClaim(tx) {
     assert(tx.TransactionType === 'PaymentChannelClaim');
     return common_1.removeUndefined({

@@ -1,0 +1,18 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "prepareIssueSetParameters",
+  "type": "object",
+  "properties": {
+    "address": {
+      "$ref": "address",
+      "description": "The address of the account that is creating the transaction."
+    },
+    "issueset": {
+      "$ref": "issueSet",
+      "description": "The specification of the issueSet to prepare."
+    },
+    "instructions": {"$ref": "instructions"}
+  },
+  "additionalProperties": true,
+  "required": ["address", "issueset"]
+}

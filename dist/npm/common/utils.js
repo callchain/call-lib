@@ -1,8 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = require("lodash");
-const bignumber_js_1 = require("bignumber.js");
-const { deriveKeypair } = require('call-keypairs');
+var _ = require("lodash");
+var bignumber_js_1 = require("bignumber.js");
+var deriveKeypair = require('call-keypairs').deriveKeypair;
 function isValidSecret(secret) {
     try {
         deriveKeypair(secret);
@@ -35,15 +35,15 @@ function toCalledAmount(amount) {
 exports.toCalledAmount = toCalledAmount;
 function convertKeysFromSnakeCaseToCamelCase(obj) {
     if (typeof obj === 'object') {
-        let newKey;
-        return _.reduce(obj, (result, value, key) => {
-            newKey = key;
+        var newKey_1;
+        return _.reduce(obj, function (result, value, key) {
+            newKey_1 = key;
             // taking this out of function leads to error in PhantomJS
-            const FINDSNAKE = /([a-zA-Z]_[a-zA-Z])/g;
+            var FINDSNAKE = /([a-zA-Z]_[a-zA-Z])/g;
             if (FINDSNAKE.test(key)) {
-                newKey = key.replace(FINDSNAKE, r => r[0] + r[2].toUpperCase());
+                newKey_1 = key.replace(FINDSNAKE, function (r) { return r[0] + r[2].toUpperCase(); });
             }
-            result[newKey] = convertKeysFromSnakeCaseToCamelCase(value);
+            result[newKey_1] = convertKeysFromSnakeCaseToCamelCase(value);
             return result;
         }, {});
     }

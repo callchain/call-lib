@@ -1,80 +1,154 @@
 "use strict";
+var __extends = (this && this.__extends) || (function () {
+    var extendStatics = function (d, b) {
+        extendStatics = Object.setPrototypeOf ||
+            ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
+            function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
+        return extendStatics(d, b);
+    };
+    return function (d, b) {
+        extendStatics(d, b);
+        function __() { this.constructor = d; }
+        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
-const util_1 = require("util");
-const browserHacks = require("./browser-hacks");
-class CallError extends Error {
-    constructor(message = '', data) {
-        super(message);
-        this.name = browserHacks.getConstructorName(this);
-        this.message = message;
-        this.data = data;
+var util_1 = require("util");
+var browserHacks = require("./browser-hacks");
+var CallError = /** @class */ (function (_super) {
+    __extends(CallError, _super);
+    function CallError(message, data) {
+        if (message === void 0) { message = ''; }
+        var _this = _super.call(this, message) || this;
+        _this.name = browserHacks.getConstructorName(_this);
+        _this.message = message;
+        _this.data = data;
         if (Error.captureStackTrace) {
-            Error.captureStackTrace(this, this.constructor);
+            Error.captureStackTrace(_this, _this.constructor);
         }
+        return _this;
     }
-    toString() {
-        let result = '[' + this.name + '(' + this.message;
+    CallError.prototype.toString = function () {
+        var result = '[' + this.name + '(' + this.message;
         if (this.data) {
             result += ', ' + util_1.inspect(this.data);
         }
         result += ')]';
         return result;
-    }
+    };
     /* console.log in node uses util.inspect on object, and util.inspect allows
     us to cutomize its output:
     https://nodejs.org/api/util.html#util_custom_inspect_function_on_objects */
-    inspect() {
+    CallError.prototype.inspect = function () {
         return this.toString();
-    }
-}
+    };
+    return CallError;
+}(Error));
 exports.CallError = CallError;
-class CalledError extends CallError {
-}
+var CalledError = /** @class */ (function (_super) {
+    __extends(CalledError, _super);
+    function CalledError() {
+        return _super !== null && _super.apply(this, arguments) || this;
+    }
+    return CalledError;
+}(CallError));
 exports.CalledError = CalledError;
-class UnexpectedError extends CallError {
-}
+var UnexpectedError = /** @class */ (function (_super) {
+    __extends(UnexpectedError, _super);
+    function UnexpectedError() {
+        return _super !== null && _super.apply(this, arguments) || this;
+    }
+    return UnexpectedError;
+}(CallError));
 exports.UnexpectedError = UnexpectedError;
-class LedgerVersionError extends CallError {
-}
+var LedgerVersionError = /** @class */ (function (_super) {
+    __extends(LedgerVersionError, _super);
+    function LedgerVersionError() {
+        return _super !== null && _super.apply(this, arguments) || this;
+    }
+    return LedgerVersionError;
+}(CallError));
 exports.LedgerVersionError = LedgerVersionError;
-class ConnectionError extends CallError {
-}
+var ConnectionError = /** @class */ (function (_super) {
+    __extends(ConnectionError, _super);
+    function ConnectionError() {
+        return _super !== null && _super.apply(this, arguments) || this;
+    }
+    return ConnectionError;
+}(CallError));
 exports.ConnectionError = ConnectionError;
-class NotConnectedError extends ConnectionError {
-}
+var NotConnectedError = /** @class */ (function (_super) {
+    __extends(NotConnectedError, _super);
+    function NotConnectedError() {
+        return _super !== null && _super.apply(this, arguments) || this;
+    }
+    return NotConnectedError;
+}(ConnectionError));
 exports.NotConnectedError = NotConnectedError;
-class DisconnectedError extends ConnectionError {
-}
+var DisconnectedError = /** @class */ (function (_super) {
+    __extends(DisconnectedError, _super);
+    function DisconnectedError() {
+        return _super !== null && _super.apply(this, arguments) || this;
+    }
+    return DisconnectedError;
+}(ConnectionError));
 exports.DisconnectedError = DisconnectedError;
-class CalledNotInitializedError extends ConnectionError {
-}
+var CalledNotInitializedError = /** @class */ (function (_super) {
+    __extends(CalledNotInitializedError, _super);
+    function CalledNotInitializedError() {
+        return _super !== null && _super.apply(this, arguments) || this;
+    }
+    return CalledNotInitializedError;
+}(ConnectionError));
 exports.CalledNotInitializedError = CalledNotInitializedError;
-class TimeoutError extends ConnectionError {
-}
+var TimeoutError = /** @class */ (function (_super) {
+    __extends(TimeoutError, _super);
+    function TimeoutError() {
+        return _super !== null && _super.apply(this, arguments) || this;
+    }
+    return TimeoutError;
+}(ConnectionError));
 exports.TimeoutError = TimeoutError;
-class ResponseFormatError extends ConnectionError {
-}
+var ResponseFormatError = /** @class */ (function (_super) {
+    __extends(ResponseFormatError, _super);
+    function ResponseFormatError() {
+        return _super !== null && _super.apply(this, arguments) || this;
+    }
+    return ResponseFormatError;
+}(ConnectionError));
 exports.ResponseFormatError = ResponseFormatError;
-class ValidationError extends CallError {
-}
+var ValidationError = /** @class */ (function (_super) {
+    __extends(ValidationError, _super);
+    function ValidationError() {
+        return _super !== null && _super.apply(this, arguments) || this;
+    }
+    return ValidationError;
+}(CallError));
 exports.ValidationError = ValidationError;
-class NotFoundError extends CallError {
-    constructor(message = 'Not found') {
-        super(message);
+var NotFoundError = /** @class */ (function (_super) {
+    __extends(NotFoundError, _super);
+    function NotFoundError(message) {
+        if (message === void 0) { message = 'Not found'; }
+        return _super.call(this, message) || this;
     }
-}
+    return NotFoundError;
+}(CallError));
 exports.NotFoundError = NotFoundError;
-class MissingLedgerHistoryError extends CallError {
-    constructor(message) {
-        super(message || 'Server is missing ledger history in the specified range');
+var MissingLedgerHistoryError = /** @class */ (function (_super) {
+    __extends(MissingLedgerHistoryError, _super);
+    function MissingLedgerHistoryError(message) {
+        return _super.call(this, message || 'Server is missing ledger history in the specified range') || this;
     }
-}
+    return MissingLedgerHistoryError;
+}(CallError));
 exports.MissingLedgerHistoryError = MissingLedgerHistoryError;
-class PendingLedgerVersionError extends CallError {
-    constructor(message) {
-        super(message || 'maxLedgerVersion is greater than server\'s most recent ' +
-            ' validated ledger');
+var PendingLedgerVersionError = /** @class */ (function (_super) {
+    __extends(PendingLedgerVersionError, _super);
+    function PendingLedgerVersionError(message) {
+        return _super.call(this, message || 'maxLedgerVersion is greater than server\'s most recent ' +
+            ' validated ledger') || this;
     }
-}
+    return PendingLedgerVersionError;
+}(CallError));
 exports.PendingLedgerVersionError = PendingLedgerVersionError;
 //# sourceMappingURL=errors.js.map

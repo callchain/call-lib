@@ -1,9 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const common_1 = require("../common");
+var common_1 = require("../common");
 function hexToStringWide(h) {
-    let a = [];
-    let i = 0;
+    var a = [];
+    var i = 0;
     if (h.length % 4) {
         a.push(String.fromCharCode(parseInt(h.substring(0, 4), 16)));
         i = 4;
@@ -14,8 +14,8 @@ function hexToStringWide(h) {
     return a.join('');
 }
 function formatAccountInfo(response) {
-    const data = response.account_data;
-    const obj = {
+    var data = response.account_data;
+    var obj = {
         sequence: data.Sequence,
         callBalance: common_1.dropsToCall(data.Balance),
         ownerCount: data.OwnerCount,
@@ -27,9 +27,10 @@ function formatAccountInfo(response) {
         obj.nickName = hexToStringWide(hexToStringWide(data.NickName));
     return common_1.removeUndefined(obj);
 }
-function getAccountInfo(address, options = {}) {
-    common_1.validate.getAccountInfo({ address, options });
-    const request = {
+function getAccountInfo(address, options) {
+    if (options === void 0) { options = {}; }
+    common_1.validate.getAccountInfo({ address: address, options: options });
+    var request = {
         command: 'account_info',
         account: address,
         ledger_index: options.ledgerVersion || 'validated'

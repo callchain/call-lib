@@ -1,8 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const assert = require("assert");
-const utils_1 = require("./utils");
-const common_1 = require("../../common");
+var assert = require("assert");
+var utils_1 = require("./utils");
+var common_1 = require("../../common");
 function parseEscrowCancellation(tx) {
     assert(tx.TransactionType === 'EscrowCancel');
     return common_1.removeUndefined({

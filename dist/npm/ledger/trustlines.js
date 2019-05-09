@@ -1,12 +1,12 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = require("lodash");
-const utils = require("./utils");
-const common_1 = require("../common");
-const account_trustline_1 = require("./parse/account-trustline");
+var _ = require("lodash");
+var utils = require("./utils");
+var common_1 = require("../common");
+var account_trustline_1 = require("./parse/account-trustline");
 function hexToStringWide(h) {
-    let a = [];
-    let i = 0;
+    var a = [];
+    var i = 0;
     if (h.length % 4) {
         a.push(String.fromCharCode(parseInt(h.substring(0, 4), 16)));
         i = 4;
@@ -20,7 +20,7 @@ function currencyFilter(currency, trustline) {
     return currency === null || trustline.specification.currency === currency;
 }
 function formatResponse(options, data) {
-    const response = { results: data.lines.map(account_trustline_1.default)
+    var response = { results: data.lines.map(account_trustline_1.default)
             .filter(_.partial(currencyFilter, options.currency || null)) };
     if (data.marker) {
         response.marker = data.marker;
@@ -34,7 +34,7 @@ function formatResponse(options, data) {
     return response;
 }
 function getAccountLines(connection, address, ledgerVersion, options, marker, limit) {
-    const request = {
+    var request = {
         command: 'account_lines',
         account: address,
         ledger_index: ledgerVersion,
@@ -44,10 +44,12 @@ function getAccountLines(connection, address, ledgerVersion, options, marker, li
     };
     return connection.request(request).then(_.partial(formatResponse, options));
 }
-function getTrustlines(address, options = {}) {
-    common_1.validate.getTrustlines({ address, options });
-    return this.getLedgerVersion().then(ledgerVersion => {
-        const getter = _.partial(getAccountLines, this.connection, address, options.ledgerVersion || ledgerVersion, options);
+function getTrustlines(address, options) {
+    var _this = this;
+    if (options === void 0) { options = {}; }
+    common_1.validate.getTrustlines({ address: address, options: options });
+    return this.getLedgerVersion().then(function (ledgerVersion) {
+        var getter = _.partial(getAccountLines, _this.connection, address, options.ledgerVersion || ledgerVersion, options);
         return utils.getRecursive(getter, options.limit);
     });
 }

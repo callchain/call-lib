@@ -1,42 +1,62 @@
 "use strict";
-const events_1 = require("events");
+var __extends = (this && this.__extends) || (function () {
+    var extendStatics = function (d, b) {
+        extendStatics = Object.setPrototypeOf ||
+            ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
+            function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
+        return extendStatics(d, b);
+    };
+    return function (d, b) {
+        extendStatics(d, b);
+        function __() { this.constructor = d; }
+        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+    };
+})();
+var events_1 = require("events");
 /**
  * Provides `EventEmitter` interface for native browser `WebSocket`,
  * same, as `ws` package provides.
  */
-class WSWrapper extends events_1.EventEmitter {
-    constructor(url, _protocols, _websocketOptions) {
-        super();
-        this.setMaxListeners(Infinity);
-        this._ws = new WebSocket(url);
-        this._ws.onclose = () => {
-            this.emit('close');
+var WSWrapper = /** @class */ (function (_super) {
+    __extends(WSWrapper, _super);
+    function WSWrapper(url, _protocols, _websocketOptions) {
+        var _this = _super.call(this) || this;
+        _this.setMaxListeners(Infinity);
+        _this._ws = new WebSocket(url);
+        _this._ws.onclose = function () {
+            _this.emit('close');
         };
-        this._ws.onopen = () => {
-            this.emit('open');
+        _this._ws.onopen = function () {
+            _this.emit('open');
         };
-        this._ws.onerror = error => {
-            this.emit('error', error);
+        _this._ws.onerror = function (error) {
+            _this.emit('error', error);
         };
-        this._ws.onmessage = message => {
-            this.emit('message', message.data);
+        _this._ws.onmessage = function (message) {
+            _this.emit('message', message.data);
         };
+        return _this;
     }
-    close() {
+    WSWrapper.prototype.close = function () {
         if (this.readyState === 1) {
             this._ws.close();
         }
-    }
-    send(message) {
+    };
+    WSWrapper.prototype.send = function (message) {
         this._ws.send(message);
-    }
-    get readyState() {
-        return this._ws.readyState;
-    }
-}
-WSWrapper.CONNECTING = 0;
-WSWrapper.OPEN = 1;
-WSWrapper.CLOSING = 2;
-WSWrapper.CLOSED = 3;
+    };
+    Object.defineProperty(WSWrapper.prototype, "readyState", {
+        get: function () {
+            return this._ws.readyState;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    WSWrapper.CONNECTING = 0;
+    WSWrapper.OPEN = 1;
+    WSWrapper.CLOSING = 2;
+    WSWrapper.CLOSED = 3;
+    return WSWrapper;
+}(events_1.EventEmitter));
 module.exports = WSWrapper;
 //# sourceMappingURL=wswrapper.js.map

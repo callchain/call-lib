@@ -1,16 +1,16 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const keypairs = require("call-keypairs");
-const common = require("../common");
-const { errors, validate } = common;
+var keypairs = require("call-keypairs");
+var common = require("../common");
+var errors = common.errors, validate = common.validate;
 function generateAddress(options) {
-    const secret = keypairs.generateSeed(options);
-    const keypair = keypairs.deriveKeypair(secret);
-    const address = keypairs.deriveAddress(keypair.publicKey);
-    return { secret, address };
+    var secret = keypairs.generateSeed(options);
+    var keypair = keypairs.deriveKeypair(secret);
+    var address = keypairs.deriveAddress(keypair.publicKey);
+    return { secret: secret, address: address };
 }
 function generateAddressAPI(options) {
-    validate.generateAddress({ options });
+    validate.generateAddress({ options: options });
     try {
         return generateAddress(options);
     }

@@ -1,9 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const utils = require("./utils");
-const common_1 = require("../common");
+var utils = require("./utils");
+var common_1 = require("../common");
 function createPaymentChannelCreateTransaction(account, paymentChannel) {
-    const txJSON = {
+    var txJSON = {
         Account: account,
         TransactionType: 'PaymentChannelCreate',
         Amount: common_1.callToDrops(paymentChannel.amount),
@@ -22,9 +22,10 @@ function createPaymentChannelCreateTransaction(account, paymentChannel) {
     }
     return txJSON;
 }
-function preparePaymentChannelCreate(address, paymentChannelCreate, instructions = {}) {
-    common_1.validate.preparePaymentChannelCreate({ address, paymentChannelCreate, instructions });
-    const txJSON = createPaymentChannelCreateTransaction(address, paymentChannelCreate);
+function preparePaymentChannelCreate(address, paymentChannelCreate, instructions) {
+    if (instructions === void 0) { instructions = {}; }
+    common_1.validate.preparePaymentChannelCreate({ address: address, paymentChannelCreate: paymentChannelCreate, instructions: instructions });
+    var txJSON = createPaymentChannelCreateTransaction(address, paymentChannelCreate);
     return utils.prepareTransaction(txJSON, this, instructions);
 }
 exports.default = preparePaymentChannelCreate;

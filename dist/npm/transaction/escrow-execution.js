@@ -1,11 +1,11 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = require("lodash");
-const utils = require("./utils");
-const validate = utils.common.validate;
-const ValidationError = utils.common.errors.ValidationError;
+var _ = require("lodash");
+var utils = require("./utils");
+var validate = utils.common.validate;
+var ValidationError = utils.common.errors.ValidationError;
 function createEscrowExecutionTransaction(account, payment) {
-    const txJSON = {
+    var txJSON = {
         TransactionType: 'EscrowFinish',
         Account: account,
         Owner: payment.owner,
@@ -26,9 +26,10 @@ function createEscrowExecutionTransaction(account, payment) {
     }
     return txJSON;
 }
-function prepareEscrowExecution(address, escrowExecution, instructions = {}) {
-    validate.prepareEscrowExecution({ address, escrowExecution, instructions });
-    const txJSON = createEscrowExecutionTransaction(address, escrowExecution);
+function prepareEscrowExecution(address, escrowExecution, instructions) {
+    if (instructions === void 0) { instructions = {}; }
+    validate.prepareEscrowExecution({ address: address, escrowExecution: escrowExecution, instructions: instructions });
+    var txJSON = createEscrowExecutionTransaction(address, escrowExecution);
     return utils.prepareTransaction(txJSON, this, instructions);
 }
 exports.default = prepareEscrowExecution;

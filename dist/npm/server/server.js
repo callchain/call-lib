@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const common = require("../common");
+var common = require("../common");
 function isConnected() {
     return this.connection.isConnected();
 }
@@ -22,7 +22,7 @@ function getServerInfo() {
 }
 exports.getServerInfo = getServerInfo;
 function getFee() {
-    const cushion = this._feeCushion || 1.2;
+    var cushion = this._feeCushion || 1.2;
     return common.serverInfo.getFee(this.connection, cushion);
 }
 exports.getFee = getFee;

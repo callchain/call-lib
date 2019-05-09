@@ -1,12 +1,12 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const constants = require("./constants");
+var constants = require("./constants");
 exports.constants = constants;
-const errors = require("./errors");
+var errors = require("./errors");
 exports.errors = errors;
-const validate = require("./validate");
+var validate = require("./validate");
 exports.validate = validate;
-const serverInfo = require("./serverinfo");
+var serverInfo = require("./serverinfo");
 exports.serverInfo = serverInfo;
 var utils_1 = require("./utils");
 exports.dropsToCall = utils_1.dropsToCall;

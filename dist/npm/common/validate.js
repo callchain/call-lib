@@ -1,8 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = require("lodash");
-const errors_1 = require("./errors");
-const schema_validator_1 = require("./schema-validator");
+var _ = require("lodash");
+var errors_1 = require("./errors");
+var schema_validator_1 = require("./schema-validator");
 function error(text) {
     return new errors_1.ValidationError(text);
 }
@@ -35,6 +35,7 @@ exports.prepareOrder = _.partial(schema_validator_1.schemaValidate, 'prepareOrde
 exports.prepareOrderCancellation = _.partial(schema_validator_1.schemaValidate, 'prepareOrderCancellationParameters');
 exports.prepareTrustline = _.partial(schema_validator_1.schemaValidate, 'prepareTrustlineParameters');
 exports.prepareSettings = _.partial(schema_validator_1.schemaValidate, 'prepareSettingsParameters');
+exports.prepareIssueSet = _.partial(schema_validator_1.schemaValidate, 'prepareIssueSetParameters');
 exports.prepareEscrowCreation = _.partial(schema_validator_1.schemaValidate, 'prepareEscrowCreationParameters');
 exports.prepareEscrowCancellation = _.partial(schema_validator_1.schemaValidate, 'prepareEscrowCancellationParameters');
 exports.prepareEscrowExecution = _.partial(schema_validator_1.schemaValidate, 'prepareEscrowExecutionParameters');

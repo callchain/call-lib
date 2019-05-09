@@ -1,10 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const utils_1 = require("./utils");
-const common_1 = require("../../common");
+var utils_1 = require("./utils");
+var common_1 = require("../../common");
 function hexToStringWide(h) {
-    let a = [];
-    let i = 0;
+    var a = [];
+    var i = 0;
     if (h.length % 4) {
         a.push(String.fromCharCode(parseInt(h.substring(0, 4), 16)));
         i = 4;
@@ -15,7 +15,7 @@ function hexToStringWide(h) {
     return a.join('');
 }
 function parseAccountTrustline(trustline) {
-    const specification = common_1.removeUndefined({
+    var specification = common_1.removeUndefined({
         limit: trustline.limit,
         currency: trustline.currency,
         counterparty: trustline.account,
@@ -25,16 +25,16 @@ function parseAccountTrustline(trustline) {
         frozen: trustline.freeze || undefined,
         authorized: trustline.authorized || undefined
     });
-    const counterparty = common_1.removeUndefined({
+    var counterparty = common_1.removeUndefined({
         limit: trustline.limit_peer,
         callingDisabled: trustline.no_call_peer || undefined,
         frozen: trustline.freeze_peer || undefined,
         authorized: trustline.peer_authorized || undefined
     });
-    const state = {
+    var state = {
         balance: trustline.balance
     };
-    const trusts = { specification, counterparty, state };
+    var trusts = { specification: specification, counterparty: counterparty, state: state };
     if (trustline.NickName) {
         trusts.nickName = {
             nick: hexToStringWide(hexToStringWide(trustline.NickName))
