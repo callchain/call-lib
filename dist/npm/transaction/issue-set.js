@@ -1,7 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var _ = require("lodash");
-var assert = require("assert");
 var bignumber_js_1 = require("bignumber.js");
 var utils = require("./utils");
 var validate = utils.common.validate;
@@ -13,7 +12,7 @@ var AccountFields = utils.common.constants.AccountFields;
 var CLEAR_SETTING = null;
 function setTransactionFlags(txJSON, values) {
     var keys = Object.keys(values);
-    assert(keys.length === 1, 'ERROR: can only set one setting per transaction');
+    //assert(keys.length === 1, 'ERROR: can only set one setting per transaction')
     var flagName = keys[0];
     var value = values[flagName];
     var index = AccountFlagIndices[flagName];
