@@ -1,6 +1,5 @@
 {
   "_from": "call-lib",
-  "_id": "call-lib@0.2.5",
   "_inBundle": false,
   "_integrity": "sha512-bout4kBtdNiWqxk1dg4wtKdtttSgvbQ26TAxwOhVcySrkIuBDxtwjQkr+5CRYw2smsCiYt/vZQJ8sXThqyk4uA==",
   "_location": "/call-lib",
@@ -23,9 +22,7 @@
   "_shasum": "b4a87bf5ef3bb438de3c63d0e8962144302842b7",
   "_spec": "call-lib",
   "_where": "D:\\newwork\\lib-cli",
-  "author": {
-    "name": "anonymous node/sails user"
-  },
+  "author": "anonymous node/sails user",
   "bundleDependencies": false,
   "dependencies": {
     "@types/lodash": "^4.14.85",
@@ -89,5 +86,13 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "version": "0.2.5"
+  "version": "0.2.6",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/callchain/call-lib.git"
+  },
+  "bugs": {
+    "url": "https://github.com/callchain/call-lib/issues"
+  },
+  "homepage": "https://github.com/callchain/call-lib#readme"
 }
