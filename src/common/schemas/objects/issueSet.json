@@ -3,7 +3,6 @@
   "title": "issueSet",
   "type": "object",
   "properties": {
-    "total": {"$ref": "lax-amount"},
     "editable": {
       "type": "boolean",
       "description": "Optional Editable of the issue set, default is non-enitable"
