@@ -36,7 +36,7 @@
     "bn.js": "^3.1.1",
     "brorand": "^1.0.5",
     "call-address-codec": "^0.1.0",
-    "call-binary-codec": "^0.1.1",
+    "call-binary-codec": "^0.1.2",
     "call-hashes": "^0.1.0",
     "call-keypairs": "^0.1.0",
     "call-lib-transactionparser": "^0.1.0",
