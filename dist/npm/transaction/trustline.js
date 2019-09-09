@@ -1,20 +1,20 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = require("lodash");
-const bignumber_js_1 = require("bignumber.js");
-const utils = require("./utils");
-const validate = utils.common.validate;
-const trustlineFlags = utils.common.txFlags.TrustSet;
+var _ = require("lodash");
+var bignumber_js_1 = require("bignumber.js");
+var utils = require("./utils");
+var validate = utils.common.validate;
+var trustlineFlags = utils.common.txFlags.TrustSet;
 function convertQuality(quality) {
     return (new bignumber_js_1.default(quality)).shift(9).truncated().toNumber();
 }
 function createTrustlineTransaction(account, trustline) {
-    const limit = {
+    var limit = {
         currency: trustline.currency,
         issuer: trustline.counterparty,
         value: trustline.limit
     };
-    const txJSON = {
+    var txJSON = {
         TransactionType: 'TrustSet',
         Account: account,
         LimitAmount: limit,
@@ -42,9 +42,10 @@ function createTrustlineTransaction(account, trustline) {
     }
     return txJSON;
 }
-function prepareTrustline(address, trustline, instructions = {}) {
-    validate.prepareTrustline({ address, trustline, instructions });
-    const txJSON = createTrustlineTransaction(address, trustline);
+function prepareTrustline(address, trustline, instructions) {
+    if (instructions === void 0) { instructions = {}; }
+    validate.prepareTrustline({ address: address, trustline: trustline, instructions: instructions });
+    var txJSON = createTrustlineTransaction(address, trustline);
     return utils.prepareTransaction(txJSON, this, instructions);
 }
 exports.default = prepareTrustline;

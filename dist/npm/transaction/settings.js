@@ -1,20 +1,20 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = require("lodash");
-const assert = require("assert");
-const bignumber_js_1 = require("bignumber.js");
-const utils = require("./utils");
-const validate = utils.common.validate;
-const AccountFlagIndices = utils.common.constants.AccountFlagIndices;
-const AccountFields = utils.common.constants.AccountFields;
+var _ = require("lodash");
+var assert = require("assert");
+var bignumber_js_1 = require("bignumber.js");
+var utils = require("./utils");
+var validate = utils.common.validate;
+var AccountFlagIndices = utils.common.constants.AccountFlagIndices;
+var AccountFields = utils.common.constants.AccountFields;
 // Emptry string passed to setting will clear it
-const CLEAR_SETTING = null;
+var CLEAR_SETTING = null;
 function setTransactionFlags(txJSON, values) {
-    const keys = Object.keys(values);
+    var keys = Object.keys(values);
     assert(keys.length === 1, 'ERROR: can only set one setting per transaction');
-    const flagName = keys[0];
-    const value = values[flagName];
-    const index = AccountFlagIndices[flagName];
+    var flagName = keys[0];
+    var value = values[flagName];
+    var index = AccountFlagIndices[flagName];
     if (index !== undefined) {
         if (value) {
             txJSON.SetFlag = index;
@@ -25,10 +25,10 @@ function setTransactionFlags(txJSON, values) {
     }
 }
 function setTransactionFields(txJSON, input) {
-    const fieldSchema = AccountFields;
-    for (const fieldName in fieldSchema) {
-        const field = fieldSchema[fieldName];
-        let value = input[field.name];
+    var fieldSchema = AccountFields;
+    for (var fieldName in fieldSchema) {
+        var field = fieldSchema[fieldName];
+        var value = input[field.name];
         if (value === undefined) {
             continue;
         }
@@ -68,7 +68,7 @@ function formatSignerEntry(signer) {
 }
 function createSettingsTransactionWithoutMemos(account, settings) {
     if (settings.regularKey !== undefined) {
-        const removeRegularKey = {
+        var removeRegularKey = {
             TransactionType: 'SetRegularKey',
             Account: account
         };
@@ -92,7 +92,7 @@ function createSettingsTransactionWithoutMemos(account, settings) {
             Total: settings.total
         };
     }
-    const txJSON = {
+    var txJSON = {
         TransactionType: 'AccountSet',
         Account: account
     };
@@ -104,15 +104,16 @@ function createSettingsTransactionWithoutMemos(account, settings) {
     return txJSON;
 }
 function createSettingsTransaction(account, settings) {
-    const txJSON = createSettingsTransactionWithoutMemos(account, settings);
+    var txJSON = createSettingsTransactionWithoutMemos(account, settings);
     if (settings.memos !== undefined) {
         txJSON.Memos = _.map(settings.memos, utils.convertMemo);
     }
     return txJSON;
 }
-function prepareSettings(address, settings, instructions = {}) {
-    validate.prepareSettings({ address, settings, instructions });
-    const txJSON = createSettingsTransaction(address, settings);
+function prepareSettings(address, settings, instructions) {
+    if (instructions === void 0) { instructions = {}; }
+    validate.prepareSettings({ address: address, settings: settings, instructions: instructions });
+    var txJSON = createSettingsTransaction(address, settings);
     return utils.prepareTransaction(txJSON, this, instructions);
 }
 exports.default = prepareSettings;

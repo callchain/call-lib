@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const utils_1 = require("./utils");
-const common_1 = require("../../common");
+var utils_1 = require("./utils");
+var common_1 = require("../../common");
 function parsePaymentChannel(data) {
     return common_1.removeUndefined({
         account: data.Account,

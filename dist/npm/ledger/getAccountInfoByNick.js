@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-function getAccountInfoByNick(nick, options = {}) {
+function getAccountInfoByNick(nick, options) {
+    if (options === void 0) { options = {}; }
     function stringToHexWide(s) {
         var result = '';
         for (var i = 0; i < s.length; i++) {
@@ -20,7 +21,7 @@ function getAccountInfoByNick(nick, options = {}) {
         }
         return result;
     }
-    const request = {
+    var request = {
         command: 'nick_search',
         NickName: stringToHexWide(stringToHexWide(nick)).toUpperCase(),
         ledger_index: options.ledgerVersion || 'validated'

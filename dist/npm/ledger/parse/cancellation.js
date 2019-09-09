@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const assert = require("assert");
+var assert = require("assert");
 function parseOrderCancellation(tx) {
     assert(tx.TransactionType === 'OfferCancel');
     return {

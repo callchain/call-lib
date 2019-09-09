@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = require("lodash");
-const utils = require("./utils");
+var _ = require("lodash");
+var utils = require("./utils");
 function isImmediateRejection(engineResult) {
     // note: "tel" errors mean the local server refused to process the
     // transaction *at that time*, but it could potentially buffer the
@@ -12,7 +12,7 @@ function isImmediateRejection(engineResult) {
     return _.startsWith(engineResult, 'tem');
 }
 function formatSubmitResponse(response) {
-    const data = {
+    var data = {
         resultCode: response.engine_result,
         resultMessage: response.engine_result_message
     };

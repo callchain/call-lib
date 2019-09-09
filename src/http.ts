@@ -3,12 +3,10 @@
 import * as assert from 'assert'
 import * as _ from 'lodash'
 import * as jayson from 'jayson'
-import {CallAPI} from './api'
-
 
 /* istanbul ignore next */
 function createHTTPServer(options, httpPort) {
-  const CallAPI = new CallAPI(options)
+  var CallAPI = new CallAPI(options)
 
   const methodNames = _.filter(_.keys(CallAPI.prototype), k => {
     return typeof CallAPI.prototype[k] === 'function'

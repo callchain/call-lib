@@ -1,8 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 function hexToStringWide(h) {
-    let a = [];
-    let i = 0;
+    var a = [];
+    var i = 0;
     if (h.length % 4) {
         a.push(String.fromCharCode(parseInt(h.substring(0, 4), 16)));
         i = 4;
@@ -13,7 +13,7 @@ function hexToStringWide(h) {
     return a.join('');
 }
 function getAccountIssues(address) {
-    const request = {
+    var request = {
         command: 'account_issues',
         account: address,
     };

@@ -1,14 +1,14 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = require("lodash");
-const binary = require("call-binary-codec");
-const utils = require("./utils");
-const bignumber_js_1 = require("bignumber.js");
-const call_address_codec_1 = require("call-address-codec");
-const common_1 = require("../common");
-const call_hashes_1 = require("call-hashes");
+var _ = require("lodash");
+var binary = require("call-binary-codec");
+var utils = require("./utils");
+var bignumber_js_1 = require("bignumber.js");
+var call_address_codec_1 = require("call-address-codec");
+var common_1 = require("../common");
+var call_hashes_1 = require("call-hashes");
 function addressToBigNumber(address) {
-    const hex = (new Buffer(call_address_codec_1.decodeAddress(address))).toString('hex');
+    var hex = (new Buffer(call_address_codec_1.decodeAddress(address))).toString('hex');
     return new bignumber_js_1.default(hex, 16);
 }
 function compareSigners(a, b) {
@@ -16,20 +16,22 @@ function compareSigners(a, b) {
         .comparedTo(addressToBigNumber(b.Signer.Account));
 }
 function combine(signedTransactions) {
-    common_1.validate.combine({ signedTransactions });
+    common_1.validate.combine({ signedTransactions: signedTransactions });
     // TODO: signedTransactions is an array of strings in the documentation, but
     // tests and this code handle it as an array of objects. Fix!
-    const txs = _.map(signedTransactions, binary.decode);
-    const tx = _.omit(txs[0], 'Signers');
-    if (!_.every(txs, _tx => _.isEqual(tx, _.omit(_tx, 'Signers')))) {
+    var txs = _.map(signedTransactions, binary.decode);
+    var tx = _.omit(txs[0], 'Signers');
+    if (!_.every(txs, function (_tx) { return _.isEqual(tx, _.omit(_tx, 'Signers')); })) {
         throw new utils.common.errors.ValidationError('txJSON is not the same for all signedTransactions');
     }
-    const unsortedSigners = _.reduce(txs, (accumulator, _tx) => accumulator.concat(_tx.Signers || []), []);
-    const signers = unsortedSigners.sort(compareSigners);
-    const signedTx = _.assign({}, tx, { Signers: signers });
-    const signedTransaction = binary.encode(signedTx);
-    const id = call_hashes_1.computeBinaryTransactionHash(signedTransaction);
-    return { signedTransaction, id };
+    var unsortedSigners = _.reduce(txs, function (accumulator, _tx) {
+        return accumulator.concat(_tx.Signers || []);
+    }, []);
+    var signers = unsortedSigners.sort(compareSigners);
+    var signedTx = _.assign({}, tx, { Signers: signers });
+    var signedTransaction = binary.encode(signedTx);
+    var id = call_hashes_1.computeBinaryTransactionHash(signedTransaction);
+    return { signedTransaction: signedTransaction, id: id };
 }
 exports.default = combine;
 //# sourceMappingURL=combine.js.map

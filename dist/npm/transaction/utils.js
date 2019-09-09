@@ -1,17 +1,19 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const bignumber_js_1 = require("bignumber.js");
-const common = require("../common");
+var bignumber_js_1 = require("bignumber.js");
+var common = require("../common");
 exports.common = common;
-const txFlags = common.txFlags;
+var txFlags = common.txFlags;
 function formatPrepareResponse(txJSON) {
-    const instructions = {
+    var instructions = {
         fee: common.dropsToCall(txJSON.Fee),
         sequence: txJSON.Sequence,
+        maxLedgerVersion: txJSON.LastLedgerSequence === undefined ?
+            null : txJSON.LastLedgerSequence
     };
     return {
-        tx_json: JSON.stringify(txJSON),
-        instructions
+        txJSON: JSON.stringify(txJSON),
+        instructions: instructions
     };
 }
 function setCanonicalFlag(txJSON) {
@@ -20,12 +22,13 @@ function setCanonicalFlag(txJSON) {
     // operations. We need to convert it back to an unsigned int.
     txJSON.Flags = txJSON.Flags >>> 0;
 }
-function scaleValue(value, multiplier, extra = 0) {
+function scaleValue(value, multiplier, extra) {
+    if (extra === void 0) { extra = 0; }
     return (new bignumber_js_1.default(value)).times(multiplier).plus(extra).toString();
 }
 function prepareTransaction(txJSON, api, instructions) {
     common.validate.instructions(instructions);
-    const account = txJSON.Account;
+    var account = txJSON.Account;
     setCanonicalFlag(txJSON);
     // function prepareMaxLedgerVersion(): Promise<Object> {
     //   if (instructions.maxLedgerVersion !== undefined) {
@@ -42,22 +45,22 @@ function prepareTransaction(txJSON, api, instructions) {
     //   })
     // }
     function prepareFee() {
-        const multiplier = instructions.signersCount === undefined ? 1 :
+        var multiplier = instructions.signersCount === undefined ? 1 :
             instructions.signersCount + 1;
         if (instructions.fee !== undefined) {
             txJSON.Fee = scaleValue(common.callToDrops(instructions.fee), multiplier);
             return Promise.resolve(txJSON);
         }
-        const cushion = api._feeCushion;
-        return common.serverInfo.getFee(api.connection, cushion).then(fee => {
-            return api.connection.getFeeRef().then(feeRef => {
-                const extraFee = (txJSON.TransactionType !== 'EscrowFinish' ||
+        var cushion = api._feeCushion;
+        return common.serverInfo.getFee(api.connection, cushion).then(function (fee) {
+            return api.connection.getFeeRef().then(function (feeRef) {
+                var extraFee = (txJSON.TransactionType !== 'EscrowFinish' ||
                     txJSON.Fulfillment === undefined) ? 0 :
                     (cushion * feeRef * (32 + Math.floor(new Buffer(txJSON.Fulfillment, 'hex').length / 16)));
-                const feeDrops = common.callToDrops(fee);
+                var feeDrops = common.callToDrops(fee);
                 if (instructions.maxFee !== undefined) {
-                    const maxFeeDrops = common.callToDrops(instructions.maxFee);
-                    const normalFee = scaleValue(feeDrops, multiplier, extraFee);
+                    var maxFeeDrops = common.callToDrops(instructions.maxFee);
+                    var normalFee = scaleValue(feeDrops, multiplier, extraFee);
                     txJSON.Fee = bignumber_js_1.default.min(normalFee, maxFeeDrops).toString();
                 }
                 else {
@@ -72,11 +75,11 @@ function prepareTransaction(txJSON, api, instructions) {
             txJSON.Sequence = instructions.sequence;
             return Promise.resolve(txJSON);
         }
-        const request = {
+        var request = {
             command: 'account_info',
             account: account
         };
-        return api.connection.request(request).then(response => {
+        return api.connection.request(request).then(function (response) {
             txJSON.Sequence = response.account_data.Sequence;
             return txJSON;
         });
@@ -107,7 +110,7 @@ function prepareTransaction(txJSON, api, instructions) {
         // prepareMaxLedgerVersion(),
         prepareFee(),
         prepareSequence()
-    ]).then(() => formatPrepareResponse(txJSON));
+    ]).then(function () { return formatPrepareResponse(txJSON); });
 }
 exports.prepareTransaction = prepareTransaction;
 function convertStringToHex(string) {

@@ -1,8 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = require("lodash");
-const errors_1 = require("./errors");
-const schema_validator_1 = require("./schema-validator");
+var _ = require("lodash");
+var errors_1 = require("./errors");
+var schema_validator_1 = require("./schema-validator");
 function error(text) {
     return new errors_1.ValidationError(text);
 }

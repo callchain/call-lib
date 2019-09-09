@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const utils = require("./utils");
-const common_1 = require("../common");
+var utils = require("./utils");
+var common_1 = require("../common");
 function getTrustlineBalanceAmount(trustline) {
     return {
         currency: trustline.specification.currency,
@@ -10,17 +10,17 @@ function getTrustlineBalanceAmount(trustline) {
     };
 }
 function formatBalances(options, balances) {
-    const result = balances.trustlines.results.map(getTrustlineBalanceAmount);
+    var result = balances.trustlines.results.map(getTrustlineBalanceAmount);
     if (!(options.counterparty ||
         (options.currency && options.currency !== 'CALL'))) {
-        const callBalance = {
+        var callBalance = {
             currency: 'CALL',
             value: balances.call
         };
         result.unshift(callBalance);
     }
     if (options.limit && result.length > options.limit) {
-        const toRemove = result.length - options.limit;
+        var toRemove = result.length - options.limit;
         result.splice(-toRemove, toRemove);
     }
     return result;
@@ -31,12 +31,18 @@ function getLedgerVersionHelper(connection, optionValue) {
     }
     return connection.getLedgerVersion();
 }
-function getBalances(address, options = {}) {
-    common_1.validate.getTrustlines({ address, options });
+function getBalances(address, options) {
+    var _this = this;
+    if (options === void 0) { options = {}; }
+    common_1.validate.getTrustlines({ address: address, options: options });
     return Promise.all([
-        getLedgerVersionHelper(this.connection, options.ledgerVersion).then(ledgerVersion => utils.getCALLBalance(this.connection, address, ledgerVersion)),
+        getLedgerVersionHelper(this.connection, options.ledgerVersion).then(function (ledgerVersion) {
+            return utils.getCALLBalance(_this.connection, address, ledgerVersion);
+        }),
         this.getTrustlines(address, options)
-    ]).then(results => formatBalances(options, { call: results[0], trustlines: results[1] }));
+    ]).then(function (results) {
+        return formatBalances(options, { call: results[0], trustlines: results[1] });
+    });
 }
 exports.default = getBalances;
 //# sourceMappingURL=balances.js.map

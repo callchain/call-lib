@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const txflags_1 = require("./txflags");
-const accountRootFlags = {
+var txflags_1 = require("./txflags");
+var accountRootFlags = {
     PasswordSpent: 0x00010000,
     RequireDestTag: 0x00020000,
     RequireAuth: 0x00040000,
@@ -11,7 +11,7 @@ const accountRootFlags = {
     GlobalFreeze: 0x00400000,
     DefaultCall: 0x00800000
 };
-const AccountFlags = {
+var AccountFlags = {
     passwordSpent: accountRootFlags.PasswordSpent,
     requireDestinationTag: accountRootFlags.RequireDestTag,
     requireAuthorization: accountRootFlags.RequireAuth,
@@ -22,7 +22,7 @@ const AccountFlags = {
     defaultCall: accountRootFlags.DefaultCall
 };
 exports.AccountFlags = AccountFlags;
-const AccountFlagIndices = {
+var AccountFlagIndices = {
     requireDestinationTag: txflags_1.txFlagIndices.AccountSet.asfRequireDest,
     requireAuthorization: txflags_1.txFlagIndices.AccountSet.asfRequireAuth,
     disallowIncomingCALL: txflags_1.txFlagIndices.AccountSet.asfDisallowCALL,
@@ -33,7 +33,7 @@ const AccountFlagIndices = {
     defaultCall: txflags_1.txFlagIndices.AccountSet.asfDefaultCall
 };
 exports.AccountFlagIndices = AccountFlagIndices;
-const AccountFields = {
+var AccountFields = {
     EmailHash: { name: 'emailHash', encoding: 'hex',
         length: 32, defaults: '0' },
     MessageKey: { name: 'messageKey' },

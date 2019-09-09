@@ -1,23 +1,25 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = require("lodash");
-const amount_1 = require("./amount");
+var _ = require("lodash");
+var amount_1 = require("./amount");
 function parsePaths(paths) {
-    return paths.map(steps => steps.map(step => _.omit(step, ['type', 'type_hex'])));
+    return paths.map(function (steps) { return steps.map(function (step) {
+        return _.omit(step, ['type', 'type_hex']);
+    }); });
 }
 function removeAnyCounterpartyEncoding(address, amount) {
     return amount.counterparty === address ?
         _.omit(amount, 'counterparty') : amount;
 }
 function createAdjustment(address, adjustmentWithoutAddress) {
-    const amountKey = _.keys(adjustmentWithoutAddress)[0];
-    const amount = adjustmentWithoutAddress[amountKey];
+    var amountKey = _.keys(adjustmentWithoutAddress)[0];
+    var amount = adjustmentWithoutAddress[amountKey];
     return _.set({ address: address }, amountKey, removeAnyCounterpartyEncoding(address, amount));
 }
 function parseAlternative(sourceAddress, destinationAddress, destinationAmount, alternative) {
     // we use "maxAmount"/"minAmount" here so that the result can be passed
     // directly to preparePayment
-    const amounts = (alternative.destination_amount !== undefined) ?
+    var amounts = (alternative.destination_amount !== undefined) ?
         { source: { amount: amount_1.default(alternative.source_amount) },
             destination: { minAmount: amount_1.default(alternative.destination_amount) } } :
         { source: { maxAmount: amount_1.default(alternative.source_amount) },
@@ -29,10 +31,12 @@ function parseAlternative(sourceAddress, destinationAddress, destinationAmount, 
     };
 }
 function parsePathfind(pathfindResult) {
-    const sourceAddress = pathfindResult.source_account;
-    const destinationAddress = pathfindResult.destination_account;
-    const destinationAmount = pathfindResult.destination_amount;
-    return pathfindResult.alternatives.map(alt => parseAlternative(sourceAddress, destinationAddress, destinationAmount, alt));
+    var sourceAddress = pathfindResult.source_account;
+    var destinationAddress = pathfindResult.destination_account;
+    var destinationAmount = pathfindResult.destination_amount;
+    return pathfindResult.alternatives.map(function (alt) {
+        return parseAlternative(sourceAddress, destinationAddress, destinationAmount, alt);
+    });
 }
 exports.default = parsePathfind;
 //# sourceMappingURL=pathfind.js.map

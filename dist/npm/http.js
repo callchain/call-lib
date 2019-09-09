@@ -1,13 +1,13 @@
 "use strict";
 /* eslint-disable new-cap */
 Object.defineProperty(exports, "__esModule", { value: true });
-const assert = require("assert");
-const _ = require("lodash");
-const jayson = require("jayson");
+var assert = require("assert");
+var _ = require("lodash");
+var jayson = require("jayson");
 /* istanbul ignore next */
 function createHTTPServer(options, httpPort) {
-    const CallAPI = new CallAPI(options);
-    const methodNames = _.filter(_.keys(CallAPI.prototype), k => {
+    var CallAPI = new CallAPI(options);
+    var methodNames = _.filter(_.keys(CallAPI.prototype), function (k) {
         return typeof CallAPI.prototype[k] === 'function'
             && k !== 'connect'
             && k !== 'disconnect'
@@ -16,19 +16,19 @@ function createHTTPServer(options, httpPort) {
     });
     function applyPromiseWithCallback(fnName, callback, args_) {
         try {
-            let args = args_;
+            var args = args_;
             if (!_.isArray(args_)) {
-                const fnParameters = jayson.Utils.getParameterNames(CallAPI[fnName]);
-                args = fnParameters.map(name => args_[name]);
-                const defaultArgs = _.omit(args_, fnParameters);
+                var fnParameters = jayson.Utils.getParameterNames(CallAPI[fnName]);
+                args = fnParameters.map(function (name) { return args_[name]; });
+                var defaultArgs = _.omit(args_, fnParameters);
                 assert(_.size(defaultArgs) <= 1, 'Function must have no more than one default argument');
                 if (_.size(defaultArgs) > 0) {
                     args.push(defaultArgs[_.keys(defaultArgs)[0]]);
                 }
             }
-            Promise.resolve(CallAPI[fnName](...args))
-                .then(res => callback(null, res))
-                .catch(err => {
+            Promise.resolve(CallAPI[fnName].apply(CallAPI, args))
+                .then(function (res) { return callback(null, res); })
+                .catch(function (err) {
                 callback({ code: 99, message: err.message, data: { name: err.name } });
             });
         }
@@ -36,22 +36,22 @@ function createHTTPServer(options, httpPort) {
             callback({ code: 99, message: err.message, data: { name: err.name } });
         }
     }
-    const methods = {};
-    _.forEach(methodNames, fn => {
-        methods[fn] = jayson.Method((args, cb) => {
+    var methods = {};
+    _.forEach(methodNames, function (fn) {
+        methods[fn] = jayson.Method(function (args, cb) {
             applyPromiseWithCallback(fn, cb, args);
         }, { collect: true });
     });
-    const server = jayson.server(methods);
-    let httpServer = null;
+    var server = jayson.server(methods);
+    var httpServer = null;
     return {
         server: server,
         start: function () {
             if (httpServer !== null) {
                 return Promise.reject('Already started');
             }
-            return new Promise(resolve => {
-                CallAPI.connect().then(() => {
+            return new Promise(function (resolve) {
+                CallAPI.connect().then(function () {
                     httpServer = server.http();
                     httpServer.listen(httpPort, resolve);
                 });
@@ -61,9 +61,9 @@ function createHTTPServer(options, httpPort) {
             if (httpServer === null) {
                 return Promise.reject('Not started');
             }
-            return new Promise(resolve => {
+            return new Promise(function (resolve) {
                 CallAPI.disconnect();
-                httpServer.close(() => {
+                httpServer.close(function () {
                     httpServer = null;
                     resolve();
                 });

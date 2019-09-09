@@ -1,8 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = require("lodash");
-const assert = require("assert");
-const common = require("../common");
+var _ = require("lodash");
+var assert = require("assert");
+var common = require("../common");
 exports.common = common;
 function clamp(value, min, max) {
     assert(min <= max, 'Illegal clamp bounds');
@@ -10,38 +10,41 @@ function clamp(value, min, max) {
 }
 exports.clamp = clamp;
 function getCALLBalance(connection, address, ledgerVersion) {
-    const request = {
+    var request = {
         command: 'account_info',
         account: address,
         ledger_index: ledgerVersion
     };
-    return connection.request(request).then(data => common.dropsToCall(data.account_data.Balance));
+    return connection.request(request).then(function (data) {
+        return common.dropsToCall(data.account_data.Balance);
+    });
 }
 exports.getCALLBalance = getCALLBalance;
 // If the marker is omitted from a response, you have reached the end
 function getRecursiveRecur(getter, marker, limit) {
-    return getter(marker, limit).then(data => {
-        const remaining = limit - data.results.length;
+    var jobs = getter(marker, limit).then(function (data) {
+        var remaining = limit - data.results.length;
         if (remaining > 0 && data.marker !== undefined) {
-            return getRecursiveRecur(getter, data.marker, remaining).then((result) => {
-                data.results = data.results.concat(result.results);
-                if(result.marker)
-                    data.marker = result.marker;
+            return getRecursiveRecur(getter, data.marker, remaining).then(function (result) {
+                data.results = data.results.concat(result["results"]);
+                if (result['marker'])
+                    data.marker = result['marker'];
                 else
                     delete data.marker;
                 return data;
             });
         }
-        const obj = {results: data.results};
-        if(data.marker){
-            obj.marker = data.marker;
+        var obj = { results: data.results };
+        if (data.marker) {
+            obj['marker'] = data.marker;
         }
-        if (data.nickName)
-            obj.nickName = data.nickName;
-        if (data.call_info)
-            obj.call_info = data.call_info;
+        if (data['nickName'])
+            obj['nickName'] = data['nickName'];
+        if (data['call_info'])
+            obj['call_info'] = data['call_info'];
         return obj;
     });
+    return jobs;
 }
 // function getRecursive(getter: Getter, limit?: number): Promise<Array<any>> {
 //   return getRecursiveRecur(getter, undefined, limit || Infinity)
@@ -51,18 +54,18 @@ function getRecursive(getter, limit, marker) {
 }
 exports.getRecursive = getRecursive;
 function renameCounterpartyToIssuer(obj) {
-    const issuer = (obj.counterparty !== undefined) ?
+    var issuer = (obj.counterparty !== undefined) ?
         obj.counterparty :
         ((obj.issuer !== undefined) ? obj.issuer : undefined);
-    const withIssuer = Object.assign({}, obj, { issuer });
+    var withIssuer = Object.assign({}, obj, { issuer: issuer });
     delete withIssuer.counterparty;
     return withIssuer;
 }
 exports.renameCounterpartyToIssuer = renameCounterpartyToIssuer;
 function renameCounterpartyToIssuerInOrder(order) {
-    const taker_gets = renameCounterpartyToIssuer(order.taker_gets);
-    const taker_pays = renameCounterpartyToIssuer(order.taker_pays);
-    const changes = { taker_gets, taker_pays };
+    var taker_gets = renameCounterpartyToIssuer(order.taker_gets);
+    var taker_pays = renameCounterpartyToIssuer(order.taker_pays);
+    var changes = { taker_gets: taker_gets, taker_pays: taker_pays };
     return _.assign({}, order, _.omitBy(changes, _.isUndefined));
 }
 exports.renameCounterpartyToIssuerInOrder = renameCounterpartyToIssuerInOrder;
@@ -80,12 +83,14 @@ function compareTransactions(first, second) {
 }
 exports.compareTransactions = compareTransactions;
 function hasCompleteLedgerRange(connection, minLedgerVersion, maxLedgerVersion) {
-    const firstLedgerVersion = 32570; // earlier versions have been lost
+    var firstLedgerVersion = 32570; // earlier versions have been lost
     return connection.hasLedgerVersions(minLedgerVersion || firstLedgerVersion, maxLedgerVersion);
 }
 exports.hasCompleteLedgerRange = hasCompleteLedgerRange;
 function isPendingLedgerVersion(connection, maxLedgerVersion) {
-    return connection.getLedgerVersion().then(ledgerVersion => ledgerVersion < (maxLedgerVersion || 0));
+    return connection.getLedgerVersion().then(function (ledgerVersion) {
+        return ledgerVersion < (maxLedgerVersion || 0);
+    });
 }
 exports.isPendingLedgerVersion = isPendingLedgerVersion;
 function ensureLedgerVersion(options) {
@@ -93,7 +98,9 @@ function ensureLedgerVersion(options) {
         options.ledgerVersion !== null) {
         return Promise.resolve(options);
     }
-    return this.getLedgerVersion().then(ledgerVersion => _.assign({}, options, { ledgerVersion }));
+    return this.getLedgerVersion().then(function (ledgerVersion) {
+        return _.assign({}, options, { ledgerVersion: ledgerVersion });
+    });
 }
 exports.ensureLedgerVersion = ensureLedgerVersion;
 //# sourceMappingURL=utils.js.map

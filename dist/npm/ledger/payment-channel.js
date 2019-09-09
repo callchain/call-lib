@@ -1,8 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const payment_channel_1 = require("./parse/payment-channel");
-const common_1 = require("../common");
-const NotFoundError = common_1.errors.NotFoundError;
+var payment_channel_1 = require("./parse/payment-channel");
+var common_1 = require("../common");
+var NotFoundError = common_1.errors.NotFoundError;
 function formatResponse(response) {
     if (response.node !== undefined &&
         response.node.LedgerEntryType === 'PayChannel') {
@@ -13,8 +13,8 @@ function formatResponse(response) {
     }
 }
 function getPaymentChannel(id) {
-    common_1.validate.getPaymentChannel({ id });
-    const request = {
+    common_1.validate.getPaymentChannel({ id: id });
+    var request = {
         command: 'ledger_entry',
         index: id,
         binary: false,

@@ -19,7 +19,8 @@ class CallAPIBroadcast extends CallAPI {
 
     this.getMethodNames().forEach(name => {
       this[name] = function() { // eslint-disable-line no-loop-func
-        return Promise.race(apis.map(api => api[name](...arguments)))
+        //return Promise.race(apis.map(api => api[name](...arguments)))
+        return Promise.race(apis.map(function (api) { return api[name].apply(api, arguments); }));
       }
     })
 

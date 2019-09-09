@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const utils_1 = require("./utils");
-const bignumber_js_1 = require("bignumber.js");
+var utils_1 = require("./utils");
+var bignumber_js_1 = require("bignumber.js");
 // function renameKeys(object, mapping) {
 //   _.forEach(mapping, (to, from) => {
 //     object[to] = object[from]
@@ -9,8 +9,8 @@ const bignumber_js_1 = require("bignumber.js");
 //   })
 // }
 function getServerInfo(connection) {
-    return connection.request({ command: 'server_info' }).then(response => {
-        const info = utils_1.convertKeysFromSnakeCaseToCamelCase(response.info);
+    return connection.request({ command: 'server_info' }).then(function (response) {
+        var info = utils_1.convertKeysFromSnakeCaseToCamelCase(response.info);
         // renameKeys(info, {hostid: 'hostID'})
         // if (info.validatedLedger) {
         //   renameKeys(info.validatedLedger, {
@@ -36,7 +36,7 @@ function computeFeeFromServerInfo(cushion, serverInfo) {
         times(cushion).toString();
 }
 function getFee(connection, cushion) {
-    return getServerInfo(connection).then(serverInfo => {
+    return getServerInfo(connection).then(function (serverInfo) {
         return computeFeeFromServerInfo(cushion, serverInfo);
     });
 }

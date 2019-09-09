@@ -9,11 +9,11 @@ function formatPrepareResponse(txJSON: any): Prepare {
   const instructions = {
     fee: common.dropsToCall(txJSON.Fee),
     sequence: txJSON.Sequence,
-    // maxLedgerVersion: txJSON.LastLedgerSequence === undefined ?
-    //   null : txJSON.LastLedgerSequence
+    maxLedgerVersion: txJSON.LastLedgerSequence === undefined ?
+      null : txJSON.LastLedgerSequence
   }
   return {
-      tx_json: JSON.stringify(txJSON),
+      txJSON: JSON.stringify(txJSON),
       instructions
   }
 }

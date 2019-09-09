@@ -1,15 +1,15 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = require("lodash");
-const assert = require("assert");
-const { Validator } = require('jsonschema');
-const errors_1 = require("./errors");
-const call_address_codec_1 = require("call-address-codec");
-const utils_1 = require("./utils");
+var _ = require("lodash");
+var assert = require("assert");
+var Validator = require('jsonschema').Validator;
+var errors_1 = require("./errors");
+var call_address_codec_1 = require("call-address-codec");
+var utils_1 = require("./utils");
 exports.isValidSecret = utils_1.isValidSecret;
 function loadSchemas() {
     // listed explicitly for webpack (instead of scanning schemas directory)
-    const schemas = [
+    var schemas = [
         require('./schemas/objects/tx-json.json'),
         require('./schemas/objects/tx-type.json'),
         require('./schemas/objects/hash128.json'),
@@ -110,10 +110,10 @@ function loadSchemas() {
         require('./schemas/input/verify-payment-channel-claim.json'),
         require('./schemas/input/combine.json')
     ];
-    const titles = schemas.map(schema => schema.title);
-    const duplicates = _.keys(_.pickBy(_.countBy(titles), count => count > 1));
+    var titles = schemas.map(function (schema) { return schema.title; });
+    var duplicates = _.keys(_.pickBy(_.countBy(titles), function (count) { return count > 1; }));
     assert(duplicates.length === 0, 'Duplicate schemas for: ' + duplicates);
-    const validator = new Validator();
+    var validator = new Validator();
     // Register custom format validators that ignore undefined instances
     // since jsonschema will still call the format validator on a missing
     // (optional)  property
@@ -130,17 +130,17 @@ function loadSchemas() {
         return utils_1.isValidSecret(instance);
     };
     // Register under the root URI '/'
-    _.forEach(schemas, schema => validator.addSchema(schema, '/' + schema.title));
+    _.forEach(schemas, function (schema) { return validator.addSchema(schema, '/' + schema.title); });
     return validator;
 }
-const schemaValidator = loadSchemas();
+var schemaValidator = loadSchemas();
 function schemaValidate(schemaName, object) {
     // Lookup under the root URI '/'
-    const schema = schemaValidator.getSchema('/' + schemaName);
+    var schema = schemaValidator.getSchema('/' + schemaName);
     if (schema === undefined) {
         throw new errors_1.ValidationError('no schema for ' + schemaName);
     }
-    const result = schemaValidator.validate(object, schema);
+    var result = schemaValidator.validate(object, schema);
     if (!result.valid) {
         throw new errors_1.ValidationError(result.errors.join());
     }

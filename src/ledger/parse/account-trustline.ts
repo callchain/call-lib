@@ -16,18 +16,18 @@ type AccountTrustline = {
   state: TrustlineState
 }
 
-function hexToStringWide(h) {//16进制转中英文
-    let a = [];
-    let i = 0;
-    if (h.length % 4) {
-        a.push(String.fromCharCode(parseInt(h.substring(0, 4), 16)));
-        i = 4;
-    }
-    for (; i<h.length; i+=4) {
-        a.push(String.fromCharCode(parseInt(h.substring(i, i+4), 16)));
-    }
-    return a.join('');
-}
+// function hexToStringWide(h) {//16进制转中英文
+//     let a = [];
+//     let i = 0;
+//     if (h.length % 4) {
+//         a.push(String.fromCharCode(parseInt(h.substring(0, 4), 16)));
+//         i = 4;
+//     }
+//     for (; i<h.length; i+=4) {
+//         a.push(String.fromCharCode(parseInt(h.substring(i, i+4), 16)));
+//     }
+//     return a.join('');
+// }
 
 function parseAccountTrustline(trustline: Trustline): AccountTrustline {
   const specification = removeUndefined({
@@ -50,11 +50,11 @@ function parseAccountTrustline(trustline: Trustline): AccountTrustline {
     balance: trustline.balance
   };
   const trusts = {specification, counterparty, state};
-  if(trustline.NickName){
-      trusts.nickName = {
-          nick: hexToStringWide(hexToStringWide(trustline.NickName))
-      };
-  }
+  // if(trustline.NickName){
+  //     trusts.nickName = {
+  //         nick: hexToStringWide(hexToStringWide(trustline.NickName))
+  //     };
+  // }
   return trusts;
 }
 

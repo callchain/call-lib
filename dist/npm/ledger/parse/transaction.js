@@ -1,24 +1,24 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const assert = require("assert");
-const utils_1 = require("./utils");
-const common_1 = require("../../common");
-const payment_1 = require("./payment");
-const trustline_1 = require("./trustline");
-const issue_set_1 = require("./issue-set");
-const order_1 = require("./order");
-const cancellation_1 = require("./cancellation");
-const settings_1 = require("./settings");
-const escrow_creation_1 = require("./escrow-creation");
-const escrow_execution_1 = require("./escrow-execution");
-const escrow_cancellation_1 = require("./escrow-cancellation");
-const payment_channel_create_1 = require("./payment-channel-create");
-const payment_channel_fund_1 = require("./payment-channel-fund");
-const payment_channel_claim_1 = require("./payment-channel-claim");
-const fee_update_1 = require("./fee-update");
-const amendment_1 = require("./amendment");
+var assert = require("assert");
+var utils_1 = require("./utils");
+var common_1 = require("../../common");
+var payment_1 = require("./payment");
+var trustline_1 = require("./trustline");
+var issue_set_1 = require("./issue-set");
+var order_1 = require("./order");
+var cancellation_1 = require("./cancellation");
+var settings_1 = require("./settings");
+var escrow_creation_1 = require("./escrow-creation");
+var escrow_execution_1 = require("./escrow-execution");
+var escrow_cancellation_1 = require("./escrow-cancellation");
+var payment_channel_create_1 = require("./payment-channel-create");
+var payment_channel_fund_1 = require("./payment-channel-fund");
+var payment_channel_claim_1 = require("./payment-channel-claim");
+var fee_update_1 = require("./fee-update");
+var amendment_1 = require("./amendment");
 function parseTransactionType(type) {
-    const mapping = {
+    var mapping = {
         Payment: 'payment',
         TrustSet: 'trustline',
         OfferCreate: 'order',
@@ -39,8 +39,8 @@ function parseTransactionType(type) {
     return mapping[type] || null;
 }
 function parseTransaction(tx) {
-    const type = parseTransactionType(tx.TransactionType);
-    const mapping = {
+    var type = parseTransactionType(tx.TransactionType);
+    var mapping = {
         'payment': payment_1.default,
         'trustline': trustline_1.default,
         'order': order_1.default,
@@ -56,10 +56,10 @@ function parseTransaction(tx) {
         'amendment': amendment_1.default,
         'issueSet': issue_set_1.default,
     };
-    const parser = mapping[type];
+    var parser = mapping[type];
     assert(parser !== undefined, 'Unrecognized transaction type');
-    const specification = parser(tx);
-    const outcome = utils_1.parseOutcome(tx);
+    var specification = parser(tx);
+    var outcome = utils_1.parseOutcome(tx);
     return common_1.removeUndefined({
         type: type,
         address: tx.Account,

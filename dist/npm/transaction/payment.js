@@ -1,14 +1,14 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = require("lodash");
-const utils = require("./utils");
+var _ = require("lodash");
+var utils = require("./utils");
 // const validate = utils.common.validate
-const toCalledAmount = utils.common.toCalledAmount;
-const paymentFlags = utils.common.txFlags.Payment;
-const ValidationError = utils.common.errors.ValidationError;
+var toCalledAmount = utils.common.toCalledAmount;
+var paymentFlags = utils.common.txFlags.Payment;
+var ValidationError = utils.common.errors.ValidationError;
 function isCALLToCALLPayment(payment) {
-    const sourceCurrency = _.get(payment, 'source.maxAmount.currency', _.get(payment, 'source.amount.currency'));
-    const destinationCurrency = _.get(payment, 'destination.amount.currency', _.get(payment, 'destination.minAmount.currency'));
+    var sourceCurrency = _.get(payment, 'source.maxAmount.currency', _.get(payment, 'source.amount.currency'));
+    var destinationCurrency = _.get(payment, 'destination.amount.currency', _.get(payment, 'destination.minAmount.currency'));
     return sourceCurrency === 'CALL' && destinationCurrency === 'CALL';
 }
 function isIOUWithoutCounterparty(amount) {
@@ -16,22 +16,23 @@ function isIOUWithoutCounterparty(amount) {
         && amount.counterparty === undefined;
 }
 function applyAnyCounterpartyEncoding(payment) {
-    _.forEach([payment.source, payment.destination], adjustment => {
-        _.forEach(['amount', 'minAmount', 'maxAmount'], key => {
+    _.forEach([payment.source, payment.destination], function (adjustment) {
+        _.forEach(['amount', 'minAmount', 'maxAmount'], function (key) {
             if (isIOUWithoutCounterparty(adjustment[key])) {
-                adjustment[key].counterparty = adjustment.issuer;
+                //adjustment[key].counterparty = adjustment.issuer
+                adjustment[key].counterparty = adjustment.address;
             }
         });
     });
 }
 function createMaximalAmount(amount) {
-    const maxCALLValue = '100000000000';
-    const maxIOUValue = '9999999999999999e80';
-    const maxValue = amount.currency === 'CALL' ? maxCALLValue : maxIOUValue;
+    var maxCALLValue = '100000000000';
+    var maxIOUValue = '9999999999999999e80';
+    var maxValue = amount.currency === 'CALL' ? maxCALLValue : maxIOUValue;
     return _.assign({}, amount, { value: maxValue });
 }
 function createPaymentTransaction(address, paymentArgument) {
-    const payment = _.cloneDeep(paymentArgument);
+    var payment = _.cloneDeep(paymentArgument);
     applyAnyCounterpartyEncoding(payment);
     if (address !== payment.source.address) {
         throw new ValidationError('address must match payment.source.address');
@@ -41,10 +42,10 @@ function createPaymentTransaction(address, paymentArgument) {
         throw new ValidationError('payment must specify either (source.maxAmount '
             + 'and destination.amount) or (source.amount and destination.minAmount)');
     }
-    const amount = payment.destination.minAmount && !isCALLToCALLPayment(payment) ?
+    var amount = payment.destination.minAmount && !isCALLToCALLPayment(payment) ?
         createMaximalAmount(payment.destination.minAmount) :
         (payment.destination.amount || payment.destination.minAmount);
-    const txJSON = {
+    var txJSON = {
         TransactionType: 'Payment',
         Account: payment.source.address,
         Destination: payment.destination.address,
@@ -87,9 +88,10 @@ function createPaymentTransaction(address, paymentArgument) {
     }
     return txJSON;
 }
-function preparePayment(address, payment, instructions = {}) {
+function preparePayment(address, payment, instructions) {
+    if (instructions === void 0) { instructions = {}; }
     // validate.preparePayment({address, payment, instructions})
-    const txJSON = createPaymentTransaction(address, payment);
+    var txJSON = createPaymentTransaction(address, payment);
     return utils.prepareTransaction(txJSON, this, instructions);
 }
 exports.default = preparePayment;

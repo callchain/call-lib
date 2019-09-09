@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const txFlags = {
+var txFlags = {
     // Universal flags can apply to any transaction type
     Universal: {
         FullyCanonicalSig: 0x80000000
@@ -41,7 +41,7 @@ exports.txFlags = txFlags;
 // The following are integer (as opposed to bit) flags
 // that can be set for particular transactions in the
 // SetFlag or ClearFlag field
-const txFlagIndices = {
+var txFlagIndices = {
     AccountSet: {
         asfRequireDest: 1,
         asfRequireAuth: 2,

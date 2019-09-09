@@ -1,10 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = require("lodash");
-const utils = require("./utils");
-const validate = utils.common.validate;
+var _ = require("lodash");
+var utils = require("./utils");
+var validate = utils.common.validate;
 function createOrderCancellationTransaction(account, orderCancellation) {
-    const txJSON = {
+    var txJSON = {
         TransactionType: 'OfferCancel',
         Account: account,
         OfferSequence: orderCancellation.orderSequence
@@ -14,9 +14,10 @@ function createOrderCancellationTransaction(account, orderCancellation) {
     }
     return txJSON;
 }
-function prepareOrderCancellation(address, orderCancellation, instructions = {}) {
-    validate.prepareOrderCancellation({ address, orderCancellation, instructions });
-    const txJSON = createOrderCancellationTransaction(address, orderCancellation);
+function prepareOrderCancellation(address, orderCancellation, instructions) {
+    if (instructions === void 0) { instructions = {}; }
+    validate.prepareOrderCancellation({ address: address, orderCancellation: orderCancellation, instructions: instructions });
+    var txJSON = createOrderCancellationTransaction(address, orderCancellation);
     return utils.prepareTransaction(txJSON, this, instructions);
 }
 exports.default = prepareOrderCancellation;

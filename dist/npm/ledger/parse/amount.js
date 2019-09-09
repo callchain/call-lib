@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const common = require("../../common");
+var common = require("../../common");
 function parseAmount(amount) {
     if (typeof amount === 'string') {
         return {

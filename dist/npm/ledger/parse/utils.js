@@ -1,16 +1,16 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const _ = require("lodash");
-const transactionParser = require("call-lib-transactionparser");
-const bignumber_js_1 = require("bignumber.js");
-const common = require("../../common");
-const amount_1 = require("./amount");
+var _ = require("lodash");
+var transactionParser = require("call-lib-transactionparser");
+var bignumber_js_1 = require("bignumber.js");
+var common = require("../../common");
+var amount_1 = require("./amount");
 function adjustQualityForCALL(quality, takerGetsCurrency, takerPaysCurrency) {
     // quality = takerPays.value/takerGets.value
     // using drops (1e-6 CALL) for CALL values
-    const numeratorShift = (takerPaysCurrency === 'CALL' ? -6 : 0);
-    const denominatorShift = (takerGetsCurrency === 'CALL' ? -6 : 0);
-    const shift = numeratorShift - denominatorShift;
+    var numeratorShift = (takerPaysCurrency === 'CALL' ? -6 : 0);
+    var denominatorShift = (takerGetsCurrency === 'CALL' ? -6 : 0);
+    var shift = numeratorShift - denominatorShift;
     return shift === 0 ? quality :
         (new bignumber_js_1.default(quality)).shift(shift).toString();
 }
@@ -35,13 +35,13 @@ function removeEmptyCounterparty(amount) {
     }
 }
 function removeEmptyCounterpartyInBalanceChanges(balanceChanges) {
-    _.forEach(balanceChanges, changes => {
+    _.forEach(balanceChanges, function (changes) {
         _.forEach(changes, removeEmptyCounterparty);
     });
 }
 function removeEmptyCounterpartyInOrderbookChanges(orderbookChanges) {
-    _.forEach(orderbookChanges, changes => {
-        _.forEach(changes, change => {
+    _.forEach(orderbookChanges, function (changes) {
+        _.forEach(changes, function (change) {
             _.forEach(change, removeEmptyCounterparty);
         });
     });
@@ -83,12 +83,12 @@ function parseDeliveredAmount(tx) {
     return undefined;
 }
 function parseOutcome(tx) {
-    const metadata = tx.meta || tx.metaData;
+    var metadata = tx.meta || tx.metaData;
     if (!metadata) {
         return undefined;
     }
-    const balanceChanges = transactionParser.parseBalanceChanges(metadata);
-    const orderbookChanges = transactionParser.parseOrderbookChanges(metadata);
+    var balanceChanges = transactionParser.parseBalanceChanges(metadata);
+    var orderbookChanges = transactionParser.parseOrderbookChanges(metadata);
     removeEmptyCounterpartyInBalanceChanges(balanceChanges);
     removeEmptyCounterpartyInOrderbookChanges(orderbookChanges);
     return common.removeUndefined({
@@ -111,7 +111,7 @@ function parseMemos(tx) {
     if (!Array.isArray(tx.Memos) || tx.Memos.length === 0) {
         return undefined;
     }
-    return tx.Memos.map(m => {
+    return tx.Memos.map(function (m) {
         return common.removeUndefined({
             type: m.Memo.parsed_memo_type || hexToString(m.Memo.MemoType),
             format: m.Memo.parsed_memo_format || hexToString(m.Memo.MemoFormat),
