@@ -32,6 +32,7 @@ import preparePaymentChannelCreate from './transaction/payment-channel-create'
 import preparePaymentChannelFund from './transaction/payment-channel-fund'
 import preparePaymentChannelClaim from './transaction/payment-channel-claim'
 import prepareSettings from './transaction/settings'
+import prepareIssueSet from './transaction/issue-set'
 import sign from './transaction/sign'
 import combine from './transaction/combine'
 import submit from './transaction/submit'
@@ -134,6 +135,7 @@ class CallAPI extends EventEmitter {
   getPaymentChannel = getPaymentChannel
   getLedger = getLedger
 
+  prepareIssueSet = prepareIssueSet
   preparePayment = preparePayment
   prepareTrustline = prepareTrustline
   prepareOrder = prepareOrder

@@ -40,6 +40,11 @@ const txFlags = {
   PaymentChannelClaim: {
     Renew: 0x00010000,
     Close: 0x00020000
+  },
+
+  IssueSet: {
+    Additional: 0x00010000,
+    NonFungible: 0x00001000
   }
 }
 

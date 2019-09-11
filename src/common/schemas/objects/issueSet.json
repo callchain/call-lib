@@ -1,0 +1,20 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "issueSet",
+  "type": "object",
+  "properties": {
+    "editable": {
+      "type": "boolean",
+      "description": "Optional Editable of the issue set, default is non-enitable"
+    },
+    "nonFungible": {
+      "type": "boolean",
+      "description": "Optional Unique of the issue set, default is fungible. When issue set is non-fungible, transfer rate not work and is ignore."
+    },
+    "transferRate": {
+      "type": "number",
+      "description": "Optional The fee to charge when users transfer this account’s issuances, as the decimal amount that must be sent to deliver 1 unit. Has precision up to 9 digits beyond the decimal point. Use null to set no fee. Default is 0."
+    }
+  },
+  "additionalProperties": true
+}

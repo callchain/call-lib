@@ -71,6 +71,9 @@ _.partial(schemaValidate, 'prepareTrustlineParameters')
 export const prepareSettings =
 _.partial(schemaValidate, 'prepareSettingsParameters')
 
+export const prepareIssueSet =
+_.partial(schemaValidate, 'prepareIssueSetParameters')
+
 export const prepareEscrowCreation =
 _.partial(schemaValidate, 'prepareEscrowCreationParameters')
 

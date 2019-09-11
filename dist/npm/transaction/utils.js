@@ -3,25 +3,28 @@ Object.defineProperty(exports, "__esModule", { value: true });
 var bignumber_js_1 = require("bignumber.js");
 var common = require("../common");
 exports.common = common;
-var txFlags = common.txFlags;
 function formatPrepareResponse(txJSON) {
+    // const instructions = {
+    //   fee: common.dropsToCall(txJSON.Fee),
+    //   sequence: txJSON.Sequence,
+    //   maxLedgerVersion: txJSON.LastLedgerSequence === undefined ?
+    //     null : txJSON.LastLedgerSequence
+    // }
     var instructions = {
         fee: common.dropsToCall(txJSON.Fee),
-        sequence: txJSON.Sequence,
-        maxLedgerVersion: txJSON.LastLedgerSequence === undefined ?
-            null : txJSON.LastLedgerSequence
+        sequence: txJSON.Sequence
     };
     return {
         txJSON: JSON.stringify(txJSON),
         instructions: instructions
     };
 }
-function setCanonicalFlag(txJSON) {
-    txJSON.Flags |= txFlags.Universal.FullyCanonicalSig;
-    // JavaScript converts operands to 32-bit signed ints before doing bitwise
-    // operations. We need to convert it back to an unsigned int.
-    txJSON.Flags = txJSON.Flags >>> 0;
-}
+// function setCanonicalFlag(txJSON) {
+//   txJSON.Flags |= txFlags.Universal.FullyCanonicalSig
+//   // JavaScript converts operands to 32-bit signed ints before doing bitwise
+//   // operations. We need to convert it back to an unsigned int.
+//   txJSON.Flags = txJSON.Flags >>> 0
+// }
 function scaleValue(value, multiplier, extra) {
     if (extra === void 0) { extra = 0; }
     return (new bignumber_js_1.default(value)).times(multiplier).plus(extra).toString();
@@ -29,7 +32,7 @@ function scaleValue(value, multiplier, extra) {
 function prepareTransaction(txJSON, api, instructions) {
     common.validate.instructions(instructions);
     var account = txJSON.Account;
-    setCanonicalFlag(txJSON);
+    // setCanonicalFlag(txJSON)
     // function prepareMaxLedgerVersion(): Promise<Object> {
     //   if (instructions.maxLedgerVersion !== undefined) {
     //     if (instructions.maxLedgerVersion !== null) {
@@ -107,7 +110,7 @@ function prepareTransaction(txJSON, api, instructions) {
         txJSON.NickName = stringToHexWide(stringToHexWide(txJSON.NickName));
     }
     return Promise.all([
-        // prepareMaxLedgerVersion(),
+        //prepareMaxLedgerVersion(),
         prepareFee(),
         prepareSequence()
     ]).then(function () { return formatPrepareResponse(txJSON); });

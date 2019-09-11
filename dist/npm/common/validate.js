@@ -35,6 +35,7 @@ exports.prepareOrder = _.partial(schema_validator_1.schemaValidate, 'prepareOrde
 exports.prepareOrderCancellation = _.partial(schema_validator_1.schemaValidate, 'prepareOrderCancellationParameters');
 exports.prepareTrustline = _.partial(schema_validator_1.schemaValidate, 'prepareTrustlineParameters');
 exports.prepareSettings = _.partial(schema_validator_1.schemaValidate, 'prepareSettingsParameters');
+exports.prepareIssueSet = _.partial(schema_validator_1.schemaValidate, 'prepareIssueSetParameters');
 exports.prepareEscrowCreation = _.partial(schema_validator_1.schemaValidate, 'prepareEscrowCreationParameters');
 exports.prepareEscrowCancellation = _.partial(schema_validator_1.schemaValidate, 'prepareEscrowCancellationParameters');
 exports.prepareEscrowExecution = _.partial(schema_validator_1.schemaValidate, 'prepareEscrowExecutionParameters');
