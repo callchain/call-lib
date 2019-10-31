@@ -23,7 +23,6 @@
   "_spec": "call-lib",
   "_where": "D:\\newwork\\lib-cli",
   "author": "anonymous node/sails user",
-  "bundleDependencies": false,
   "dependencies": {
     "@types/lodash": "^4.14.85",
     "@types/ws": "^3.2.0",
@@ -86,7 +85,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "version": "0.2.8",
+  "version": "0.2.10",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/callchain/call-lib.git"
