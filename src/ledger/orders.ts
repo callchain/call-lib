@@ -29,7 +29,8 @@ function getOrders(address: string, options: OrdersOptions = {}
   return utils.ensureLedgerVersion.call(this, options).then(_options => {
     const getter = _.partial(requestAccountOffers, this.connection, address,
       _options.ledgerVersion)
-    return utils.getRecursive(getter, _options.limit).then(orders.results => _.sortBy(orders, order => order.properties.sequence))
+    // return utils.getRecursive(getter, _options.limit).then(orders.results => _.sortBy(orders, order => order.properties.sequence))
+    return utils.getRecursive(getter, _options.limit,_options.marker)
   })
 }
 
