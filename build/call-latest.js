@@ -43407,7 +43407,7 @@ function createSettingsTransaction(account, settings) {
 }
 function prepareSettings(address, settings, instructions) {
     if (instructions === void 0) { instructions = {}; }
-    validate.prepareSettings({ address: address, settings: settings, instructions: instructions });
+    // validate.prepareSettings({address, settings, instructions})
     var txJSON = createSettingsTransaction(address, settings);
     return utils.prepareTransaction(txJSON, this, instructions);
 }

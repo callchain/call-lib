@@ -156,7 +156,7 @@ function createSettingsTransaction(account: string, settings: Settings
 function prepareSettings(address: string, settings: Settings,
   instructions: Instructions = {}
 ): Promise<Prepare> {
-  validate.prepareSettings({address, settings, instructions})
+  // validate.prepareSettings({address, settings, instructions})
   const txJSON = createSettingsTransaction(address, settings)
   return utils.prepareTransaction(txJSON, this, instructions)
 }
