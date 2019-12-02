@@ -39,7 +39,8 @@ var AccountFields = {
     MessageKey: { name: 'messageKey' },
     Domain: { name: 'domain', encoding: 'hex' },
     TransferRate: { name: 'transferRate', defaults: 0, shift: 9 },
-    NickName: { name: 'nickname' }
+    NickName: { name: 'nickname' },
+    Code: { name: 'code' }
 };
 exports.AccountFields = AccountFields;
 //# sourceMappingURL=constants.js.map

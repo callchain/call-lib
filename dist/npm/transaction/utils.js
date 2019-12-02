@@ -125,4 +125,14 @@ function convertMemo(memo) {
     };
 }
 exports.convertMemo = convertMemo;
+function convertArg(arg) {
+    return {
+        arg: common.removeUndefined({
+            ArgName: arg.name ? convertStringToHex(arg.name) : undefined,
+            ArgType: arg.type ? convertStringToHex(arg.type) : undefined,
+            ArgValue: arg.value ? convertStringToHex(arg.value) : undefined
+        })
+    };
+}
+exports.convertArg = convertArg;
 //# sourceMappingURL=utils.js.map

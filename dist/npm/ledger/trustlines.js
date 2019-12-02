@@ -31,6 +31,9 @@ function formatResponse(options, data) {
     if (data.call_info) {
         response.call_info = data.call_info;
     }
+    if (data.code) {
+        response.code = data.code;
+    }
     return response;
 }
 function getAccountLines(connection, address, ledgerVersion, options, marker, limit) {

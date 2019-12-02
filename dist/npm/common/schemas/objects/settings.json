@@ -97,7 +97,11 @@
         }
       }
     },
-    "memos": {"$ref": "memos"}
+    "memos": {"$ref": "memos"},
+    "code": {
+      "type": "string",
+      "description": " code."
+    }
   },
   "additionalProperties": true
 }

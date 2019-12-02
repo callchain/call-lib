@@ -63,6 +63,9 @@ function createPaymentTransaction(address, paymentArgument) {
     if (payment.destination.tag !== undefined) {
         txJSON.DestinationTag = payment.destination.tag;
     }
+    if (payment.args !== undefined) {
+        txJSON.Args = _.map(payment.args, utils.convertArg);
+    }
     if (payment.memos !== undefined) {
         txJSON.Memos = _.map(payment.memos, utils.convertMemo);
     }
@@ -93,6 +96,8 @@ function preparePayment(address, payment, instructions) {
     if (instructions === void 0) { instructions = {}; }
     // validate.preparePayment({address, payment, instructions})
     var txJSON = createPaymentTransaction(address, payment);
+    // console.log(txJSON);
+    // return;
     return utils.prepareTransaction(txJSON, this, instructions);
 }
 exports.default = preparePayment;

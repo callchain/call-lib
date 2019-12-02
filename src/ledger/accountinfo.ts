@@ -53,7 +53,8 @@ function formatAccountInfo(response: AccountDataResponse) {
       ownerCount: data.OwnerCount,
       previousInitiatedTransactionID: data.AccountTxnID,
       previousAffectingTransactionID: data.PreviousTxnID,
-      previousAffectingTransactionLedgerVersion: data.PreviousTxnLgrSeq
+      previousAffectingTransactionLedgerVersion: data.PreviousTxnLgrSeq,
+      code:data.Code
   };
   if(data.NickName)
     obj.nickName = hexToStringWide(hexToStringWide(data.NickName));

@@ -51,6 +51,7 @@ type Settings = {
   emailHash?: string,
   messageKey?: string,
   domain?: string,
+  code?: string,
   transferRate?: number,
   regularKey?: string
 }

@@ -40,6 +40,8 @@ function getRecursiveRecur(getter, marker, limit) {
         }
         if (data.nickName)
             obj.nickName = data.nickName;
+        if (data.code)
+            obj.code = data.code;
         if (data.call_info)
             obj.call_info = data.call_info;
         return obj;
