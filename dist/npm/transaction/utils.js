@@ -127,8 +127,8 @@ function convertMemo(memo) {
 exports.convertMemo = convertMemo;
 function convertArg(arg) {
     return {
-        arg: common.removeUndefined({
-            ArgName: arg.name ? convertStringToHex(arg.name) : undefined,
+        Arg: common.removeUndefined({
+            ArgName: arg.name ? arg.name : undefined,
             ArgType: arg.type ? convertStringToHex(arg.type) : undefined,
             ArgValue: arg.value ? convertStringToHex(arg.value) : undefined
         })
