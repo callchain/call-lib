@@ -51,10 +51,12 @@ function getRecursiveRecur(
       if(data.marker){
           obj['marker'] = data.marker;
       }
+      
       if(data['nickName'])
           obj['nickName'] = data['nickName'];
       if (data['call_info'])
           obj['call_info'] = data['call_info'];
+
       return obj;
   });
   return jobs;

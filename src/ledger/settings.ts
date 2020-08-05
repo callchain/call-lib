@@ -20,6 +20,7 @@ type GetSettings = {
   emailHash?: string|null,
   messageKey?: string,
   domain?: string,
+  code?: string,
   transferRate?: number|null,
   regularKey?: string
 }

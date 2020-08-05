@@ -39,6 +39,7 @@ const AccountFields = {
   length: 32, defaults: '0'},
   MessageKey: {name: 'messageKey'},
   Domain: {name: 'domain', encoding: 'hex'},
+  Code: {name: 'code'},
   TransferRate: {name: 'transferRate', defaults: 0, shift: 9},
   NickName: {name: 'nickname'}
 }

@@ -54,6 +54,10 @@
       "type": "string",
       "description": " The domain that owns this account, as a hexadecimal string representing the ASCII for the domain in lowercase."
     },
+    "code": {
+      "type": "string",
+      "description": " code."
+    },
     "transferRate": {
       "description": " The fee to charge when users transfer this account’s issuances, as the decimal amount that must be sent to deliver 1 unit. Has precision up to 9 digits beyond the decimal point. Use `null` to set no fee.",
       "oneOf": [

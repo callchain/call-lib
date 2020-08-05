@@ -42,6 +42,7 @@ function formatResponse(options: TrustlinesOptions, data: any) {
     // if(data.call_info){
     //     response.call_info = data.call_info;
     // }
+    
     return response;
 }
 
