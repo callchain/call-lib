@@ -6,11 +6,11 @@ import {TransactionType} from './transaction-types'
 import {Issue} from '../common/types'
 
 type RecursiveData = {
-  marker: string,
+  marker: String,
   results: Array<any>
 }
 
-type Getter = (marker?: string, limit?: number) => Promise<RecursiveData>
+type Getter = (marker?: String, limit?: number) => Promise<RecursiveData>
 
 function clamp(value: number, min: number, max: number): number {
   assert(min <= max, 'Illegal clamp bounds')
@@ -31,16 +31,17 @@ function getCALLBalance(connection: Connection, address: string,
 
 // If the marker is omitted from a response, you have reached the end
 function getRecursiveRecur(
-  getter: Getter, marker: string | undefined, limit: number
-): Promise<Array<any>> {
-  return getter(marker, limit).then(data => {
+  getter: Getter, marker: String, limit: number
+): Promise<any> {
+  var jobs = getter(marker, limit).then(data => {
     const remaining = limit - data.results.length
     if (remaining > 0 && data.marker !== undefined) {
       return getRecursiveRecur(getter, data.marker, remaining).then((result) =>
       {
-          data.results = data.results.concat(result.results);
-          if(result.marker)
-              data.marker = result.marker;
+        
+          data.results = data.results.concat(result["results"]);
+          if(result['marker'])
+              data.marker = result['marker'];
           else
               delete data.marker;
           return data;
@@ -48,14 +49,15 @@ function getRecursiveRecur(
     }
       const obj = {results: data.results};
       if(data.marker){
-          obj.marker = data.marker;
+          obj['marker'] = data.marker;
       }
-      if(data.nickName)
-          obj.nickName = data.nickName;
-      if (data.call_info)
-          obj.call_info = data.call_info;
+      if(data['nickName'])
+          obj['nickName'] = data['nickName'];
+      if (data['call_info'])
+          obj['call_info'] = data['call_info'];
       return obj;
-  })
+  });
+  return jobs;
 }
 
 // function getRecursive(getter: Getter, limit?: number): Promise<Array<any>> {

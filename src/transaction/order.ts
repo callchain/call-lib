@@ -1,7 +1,7 @@
 import * as _ from 'lodash'
 import * as utils from './utils'
 const offerFlags = utils.common.txFlags.OfferCreate
-import {validate, iso8601ToCallTime} from '../common'
+import {iso8601ToCallTime} from '../common'
 import {Instructions, Prepare} from './types'
 import {Order} from '../ledger/transaction-types'
 

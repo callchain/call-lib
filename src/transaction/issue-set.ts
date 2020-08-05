@@ -128,7 +128,6 @@ function createIssueSetTransaction(account: string, issueset: IssueSet
 function prepareIssueSet(address: string, issueset: IssueSet,
   instructions: Instructions = {}
 ): Promise<Prepare> {
-  //validate.prepareSettings({address, issueset, instructions})
   validate.prepareIssueSet({address, issueset, instructions})
   const txJSON = createIssueSetTransaction(address, issueset)
   return utils.prepareTransaction(txJSON, this, instructions)

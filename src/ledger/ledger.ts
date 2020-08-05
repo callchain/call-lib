@@ -6,7 +6,8 @@ type LedgerOptions = {
   ledgerVersion?: number,
   includeAllData?: boolean,
   includeTransactions?: boolean,
-  includeState?: boolean
+  includeState?: boolean,
+  ledgerHash?:string
 }
 
 

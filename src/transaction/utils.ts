@@ -1,30 +1,34 @@
 import BigNumber from 'bignumber.js'
 import * as common from '../common'
 import {Memo, ApiMemo} from '../common/types'
-const txFlags = common.txFlags
+//const txFlags = common.txFlags
 import {Instructions, Prepare} from './types'
 import {CallAPI} from '../api'
 
 function formatPrepareResponse(txJSON: any): Prepare {
+  // const instructions = {
+  //   fee: common.dropsToCall(txJSON.Fee),
+  //   sequence: txJSON.Sequence,
+  //   maxLedgerVersion: txJSON.LastLedgerSequence === undefined ?
+  //     null : txJSON.LastLedgerSequence
+  // }
   const instructions = {
     fee: common.dropsToCall(txJSON.Fee),
-    sequence: txJSON.Sequence,
-    // maxLedgerVersion: txJSON.LastLedgerSequence === undefined ?
-    //   null : txJSON.LastLedgerSequence
+    sequence: txJSON.Sequence
   }
   return {
-      tx_json: JSON.stringify(txJSON),
+      txJSON: JSON.stringify(txJSON),
       instructions
   }
 }
 
-function setCanonicalFlag(txJSON) {
-  txJSON.Flags |= txFlags.Universal.FullyCanonicalSig
+// function setCanonicalFlag(txJSON) {
+//   txJSON.Flags |= txFlags.Universal.FullyCanonicalSig
 
-  // JavaScript converts operands to 32-bit signed ints before doing bitwise
-  // operations. We need to convert it back to an unsigned int.
-  txJSON.Flags = txJSON.Flags >>> 0
-}
+//   // JavaScript converts operands to 32-bit signed ints before doing bitwise
+//   // operations. We need to convert it back to an unsigned int.
+//   txJSON.Flags = txJSON.Flags >>> 0
+// }
 
 function scaleValue(value, multiplier, extra = 0) {
   return (new BigNumber(value)).times(multiplier).plus(extra).toString()
@@ -36,7 +40,7 @@ function prepareTransaction(txJSON: any, api: CallAPI,
   common.validate.instructions(instructions)
 
   const account = txJSON.Account
-  //setCanonicalFlag(txJSON)
+  // setCanonicalFlag(txJSON)
 
   // function prepareMaxLedgerVersion(): Promise<Object> {
   //   if (instructions.maxLedgerVersion !== undefined) {
@@ -119,7 +123,7 @@ function prepareTransaction(txJSON: any, api: CallAPI,
     }
 
   return Promise.all([
-    // prepareMaxLedgerVersion(),
+    //prepareMaxLedgerVersion(),
     prepareFee(),
     prepareSequence()
   ]).then(() => formatPrepareResponse(txJSON))
