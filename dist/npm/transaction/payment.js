@@ -19,8 +19,8 @@ function applyAnyCounterpartyEncoding(payment) {
     _.forEach([payment.source, payment.destination], function (adjustment) {
         _.forEach(['amount', 'minAmount', 'maxAmount'], function (key) {
             if (isIOUWithoutCounterparty(adjustment[key])) {
-                //adjustment[key].counterparty = adjustment.issuer
-                adjustment[key].counterparty = adjustment.address;
+                adjustment[key].counterparty = adjustment.issuer;
+                // adjustment[key].counterparty = adjustment.address
             }
         });
     });

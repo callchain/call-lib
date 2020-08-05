@@ -79,7 +79,7 @@ module.exports = _;
 Object.defineProperty(exports, "__esModule", { value: true });
 var constants = __webpack_require__(99);
 exports.constants = constants;
-var errors = __webpack_require__(38);
+var errors = __webpack_require__(36);
 exports.errors = errors;
 var validate = __webpack_require__(103);
 exports.validate = validate;
@@ -5278,6 +5278,275 @@ var __WEBPACK_AMD_DEFINE_RESULT__;/*! bignumber.js v4.1.0 https://github.com/Mik
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
+var assert = __webpack_require__(2);
+
+function signum(a, b) {
+  return a < b ? -1 : a === b ? 0 : 1;
+}
+
+var hexLookup = function () {
+  var res = {};
+  var reverse = res.reverse = new Array(256);
+  for (var i = 0; i < 16; i++) {
+    var char = i.toString(16).toUpperCase();
+    res[char] = i;
+
+    for (var j = 0; j < 16; j++) {
+      var char2 = j.toString(16).toUpperCase();
+      var byte = (i << 4) + j;
+      var byteHex = char + char2;
+      res[byteHex] = byte;
+      reverse[byte] = byteHex;
+    }
+  }
+  return res;
+}();
+
+var reverseHexLookup = hexLookup.reverse;
+
+function bytesToHex(sequence) {
+  var buf = Array(sequence.length);
+  for (var i = sequence.length - 1; i >= 0; i--) {
+    buf[i] = reverseHexLookup[sequence[i]];
+  }
+  return buf.join('');
+}
+
+function byteForHex(hex) {
+  var byte = hexLookup[hex];
+  if (byte === undefined) {
+    throw new Error('`' + hex + '` is not a valid hex representation of a byte');
+  }
+  return byte;
+}
+
+function parseBytes(val) {var Output = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : Array;
+  if (!val || val.length === undefined) {
+    throw new Error(val + ' is not a sequence');
+  }
+
+  if (typeof val === 'string') {
+    var start = val.length % 2;
+    var _res = new Output((val.length + start) / 2);
+    for (var i = val.length, to = _res.length - 1; to >= start; i -= 2, to--) {
+      _res[to] = byteForHex(val.slice(i - 2, i));
+    }
+    if (start === 1) {
+      _res[0] = byteForHex(val[0]);
+    }
+    return _res;
+  } else if (val instanceof Output) {
+    return val;
+  } else if (Output === Uint8Array) {
+    return new Output(val);
+  }
+  var res = new Output(val.length);
+  for (var _i = val.length - 1; _i >= 0; _i--) {
+    res[_i] = val[_i];
+  }
+  return res;
+}
+
+function serializeUIntN(val, width) {
+  var newBytes = new Uint8Array(width);
+  var lastIx = width - 1;
+  for (var i = 0; i < width; i++) {
+    newBytes[lastIx - i] = val >>> i * 8 & 0xff;
+  }
+  return newBytes;
+}
+
+function compareBytes(a, b) {
+  assert(a.length === b.length);
+  for (var i = 0; i < a.length; i++) {
+    var cmp = signum(a[i], b[i]);
+    if (cmp !== 0) {
+      return cmp;
+    }
+  }
+  return 0;
+}
+
+function slice(val) {var startIx = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 0;var endIx = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : val.length;var Output = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : val.constructor;
+  /* eslint-disable no-param-reassign*/
+  if (startIx < 0) {
+    startIx += val.length;
+  }
+  if (endIx < 0) {
+    endIx += val.length;
+  }
+  /* eslint-enable no-param-reassign*/
+  var len = endIx - startIx;
+  var res = new Output(len);
+  for (var i = endIx - 1; i >= startIx; i--) {
+    res[i - startIx] = val[i];
+  }
+  return res;
+}
+
+module.exports = {
+  parseBytes: parseBytes,
+  bytesToHex: bytesToHex,
+  slice: slice,
+  compareBytes: compareBytes,
+  serializeUIntN: serializeUIntN };
+
+/***/ }),
+/* 8 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+var elliptic = exports;
+
+elliptic.version = __webpack_require__(124).version;
+elliptic.utils = __webpack_require__(125);
+elliptic.rand = __webpack_require__(67);
+elliptic.hmacDRBG = __webpack_require__(126);
+elliptic.curve = __webpack_require__(38);
+elliptic.curves = __webpack_require__(131);
+
+// Protocols
+elliptic.ec = __webpack_require__(133);
+elliptic.eddsa = __webpack_require__(136);
+
+
+/***/ }),
+/* 9 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+/* WEBPACK VAR INJECTION */(function(Buffer) {
+Object.defineProperty(exports, "__esModule", { value: true });
+var _ = __webpack_require__(0);
+var transactionParser = __webpack_require__(260);
+var bignumber_js_1 = __webpack_require__(6);
+var common = __webpack_require__(1);
+var amount_1 = __webpack_require__(16);
+function adjustQualityForCALL(quality, takerGetsCurrency, takerPaysCurrency) {
+    // quality = takerPays.value/takerGets.value
+    // using drops (1e-6 CALL) for CALL values
+    var numeratorShift = (takerPaysCurrency === 'CALL' ? -6 : 0);
+    var denominatorShift = (takerGetsCurrency === 'CALL' ? -6 : 0);
+    var shift = numeratorShift - denominatorShift;
+    return shift === 0 ? quality :
+        (new bignumber_js_1.default(quality)).shift(shift).toString();
+}
+exports.adjustQualityForCALL = adjustQualityForCALL;
+function parseQuality(quality) {
+    if (typeof quality !== 'number') {
+        return undefined;
+    }
+    return (new bignumber_js_1.default(quality)).shift(-9).toNumber();
+}
+exports.parseQuality = parseQuality;
+function parseTimestamp(callTime) {
+    if (typeof callTime !== 'number') {
+        return undefined;
+    }
+    return common.callTimeToISO8601(callTime);
+}
+exports.parseTimestamp = parseTimestamp;
+function removeEmptyCounterparty(amount) {
+    if (amount.counterparty === '') {
+        delete amount.counterparty;
+    }
+}
+function removeEmptyCounterpartyInBalanceChanges(balanceChanges) {
+    _.forEach(balanceChanges, function (changes) {
+        _.forEach(changes, removeEmptyCounterparty);
+    });
+}
+function removeEmptyCounterpartyInOrderbookChanges(orderbookChanges) {
+    _.forEach(orderbookChanges, function (changes) {
+        _.forEach(changes, function (change) {
+            _.forEach(change, removeEmptyCounterparty);
+        });
+    });
+}
+function isPartialPayment(tx) {
+    return (tx.Flags & common.txFlags.Payment.PartialPayment) !== 0;
+}
+exports.isPartialPayment = isPartialPayment;
+function parseDeliveredAmount(tx) {
+    if (tx.TransactionType !== 'Payment' ||
+        tx.meta.TransactionResult !== 'tesSUCCESS') {
+        return undefined;
+    }
+    if (tx.meta.delivered_amount &&
+        tx.meta.delivered_amount === 'unavailable') {
+        return undefined;
+    }
+    // parsable delivered_amount
+    if (tx.meta.delivered_amount) {
+        return amount_1.default(tx.meta.delivered_amount);
+    }
+    // DeliveredAmount only present on partial payments
+    if (tx.meta.DeliveredAmount) {
+        return amount_1.default(tx.meta.DeliveredAmount);
+    }
+    // no partial payment flag, use tx.Amount
+    if (tx.Amount && !isPartialPayment(tx)) {
+        return amount_1.default(tx.Amount);
+    }
+    // DeliveredAmount field was introduced at
+    // ledger 4594095 - after that point its absence
+    // on a tx flagged as partial payment indicates
+    // the full amount was transferred. The amount
+    // transferred with a partial payment before
+    // that date must be derived from metadata.
+    if (tx.Amount && tx.ledger_index > 4594094) {
+        return amount_1.default(tx.Amount);
+    }
+    return undefined;
+}
+function parseOutcome(tx) {
+    var metadata = tx.meta || tx.metaData;
+    if (!metadata) {
+        return undefined;
+    }
+    var balanceChanges = transactionParser.parseBalanceChanges(metadata);
+    var orderbookChanges = transactionParser.parseOrderbookChanges(metadata);
+    removeEmptyCounterpartyInBalanceChanges(balanceChanges);
+    removeEmptyCounterpartyInOrderbookChanges(orderbookChanges);
+    return common.removeUndefined({
+        result: tx.meta.TransactionResult,
+        timestamp: parseTimestamp(tx.date),
+        fee: common.dropsToCall(tx.Fee),
+        balanceChanges: balanceChanges,
+        orderbookChanges: orderbookChanges,
+        ledgerVersion: tx.ledger_index,
+        indexInLedger: tx.meta.TransactionIndex,
+        deliveredAmount: parseDeliveredAmount(tx)
+    });
+}
+exports.parseOutcome = parseOutcome;
+function hexToString(hex) {
+    return hex ? new Buffer(hex, 'hex').toString('utf-8') : undefined;
+}
+exports.hexToString = hexToString;
+function parseMemos(tx) {
+    if (!Array.isArray(tx.Memos) || tx.Memos.length === 0) {
+        return undefined;
+    }
+    return tx.Memos.map(function (m) {
+        return common.removeUndefined({
+            type: m.Memo.parsed_memo_type || hexToString(m.Memo.MemoType),
+            format: m.Memo.parsed_memo_format || hexToString(m.Memo.MemoFormat),
+            data: m.Memo.parsed_memo_data || hexToString(m.Memo.MemoData)
+        });
+    });
+}
+exports.parseMemos = parseMemos;
+
+/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(5).Buffer))
+
+/***/ }),
+/* 10 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
 /* WEBPACK VAR INJECTION */(function(Buffer) {
 Object.defineProperty(exports, "__esModule", { value: true });
 var bignumber_js_1 = __webpack_require__(6);
@@ -5410,275 +5679,6 @@ function convertMemo(memo) {
     };
 }
 exports.convertMemo = convertMemo;
-
-/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(5).Buffer))
-
-/***/ }),
-/* 8 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-var assert = __webpack_require__(2);
-
-function signum(a, b) {
-  return a < b ? -1 : a === b ? 0 : 1;
-}
-
-var hexLookup = function () {
-  var res = {};
-  var reverse = res.reverse = new Array(256);
-  for (var i = 0; i < 16; i++) {
-    var char = i.toString(16).toUpperCase();
-    res[char] = i;
-
-    for (var j = 0; j < 16; j++) {
-      var char2 = j.toString(16).toUpperCase();
-      var byte = (i << 4) + j;
-      var byteHex = char + char2;
-      res[byteHex] = byte;
-      reverse[byte] = byteHex;
-    }
-  }
-  return res;
-}();
-
-var reverseHexLookup = hexLookup.reverse;
-
-function bytesToHex(sequence) {
-  var buf = Array(sequence.length);
-  for (var i = sequence.length - 1; i >= 0; i--) {
-    buf[i] = reverseHexLookup[sequence[i]];
-  }
-  return buf.join('');
-}
-
-function byteForHex(hex) {
-  var byte = hexLookup[hex];
-  if (byte === undefined) {
-    throw new Error('`' + hex + '` is not a valid hex representation of a byte');
-  }
-  return byte;
-}
-
-function parseBytes(val) {var Output = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : Array;
-  if (!val || val.length === undefined) {
-    throw new Error(val + ' is not a sequence');
-  }
-
-  if (typeof val === 'string') {
-    var start = val.length % 2;
-    var _res = new Output((val.length + start) / 2);
-    for (var i = val.length, to = _res.length - 1; to >= start; i -= 2, to--) {
-      _res[to] = byteForHex(val.slice(i - 2, i));
-    }
-    if (start === 1) {
-      _res[0] = byteForHex(val[0]);
-    }
-    return _res;
-  } else if (val instanceof Output) {
-    return val;
-  } else if (Output === Uint8Array) {
-    return new Output(val);
-  }
-  var res = new Output(val.length);
-  for (var _i = val.length - 1; _i >= 0; _i--) {
-    res[_i] = val[_i];
-  }
-  return res;
-}
-
-function serializeUIntN(val, width) {
-  var newBytes = new Uint8Array(width);
-  var lastIx = width - 1;
-  for (var i = 0; i < width; i++) {
-    newBytes[lastIx - i] = val >>> i * 8 & 0xff;
-  }
-  return newBytes;
-}
-
-function compareBytes(a, b) {
-  assert(a.length === b.length);
-  for (var i = 0; i < a.length; i++) {
-    var cmp = signum(a[i], b[i]);
-    if (cmp !== 0) {
-      return cmp;
-    }
-  }
-  return 0;
-}
-
-function slice(val) {var startIx = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 0;var endIx = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : val.length;var Output = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : val.constructor;
-  /* eslint-disable no-param-reassign*/
-  if (startIx < 0) {
-    startIx += val.length;
-  }
-  if (endIx < 0) {
-    endIx += val.length;
-  }
-  /* eslint-enable no-param-reassign*/
-  var len = endIx - startIx;
-  var res = new Output(len);
-  for (var i = endIx - 1; i >= startIx; i--) {
-    res[i - startIx] = val[i];
-  }
-  return res;
-}
-
-module.exports = {
-  parseBytes: parseBytes,
-  bytesToHex: bytesToHex,
-  slice: slice,
-  compareBytes: compareBytes,
-  serializeUIntN: serializeUIntN };
-
-/***/ }),
-/* 9 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-var elliptic = exports;
-
-elliptic.version = __webpack_require__(124).version;
-elliptic.utils = __webpack_require__(125);
-elliptic.rand = __webpack_require__(67);
-elliptic.hmacDRBG = __webpack_require__(126);
-elliptic.curve = __webpack_require__(39);
-elliptic.curves = __webpack_require__(131);
-
-// Protocols
-elliptic.ec = __webpack_require__(133);
-elliptic.eddsa = __webpack_require__(136);
-
-
-/***/ }),
-/* 10 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-/* WEBPACK VAR INJECTION */(function(Buffer) {
-Object.defineProperty(exports, "__esModule", { value: true });
-var _ = __webpack_require__(0);
-var transactionParser = __webpack_require__(260);
-var bignumber_js_1 = __webpack_require__(6);
-var common = __webpack_require__(1);
-var amount_1 = __webpack_require__(16);
-function adjustQualityForCALL(quality, takerGetsCurrency, takerPaysCurrency) {
-    // quality = takerPays.value/takerGets.value
-    // using drops (1e-6 CALL) for CALL values
-    var numeratorShift = (takerPaysCurrency === 'CALL' ? -6 : 0);
-    var denominatorShift = (takerGetsCurrency === 'CALL' ? -6 : 0);
-    var shift = numeratorShift - denominatorShift;
-    return shift === 0 ? quality :
-        (new bignumber_js_1.default(quality)).shift(shift).toString();
-}
-exports.adjustQualityForCALL = adjustQualityForCALL;
-function parseQuality(quality) {
-    if (typeof quality !== 'number') {
-        return undefined;
-    }
-    return (new bignumber_js_1.default(quality)).shift(-9).toNumber();
-}
-exports.parseQuality = parseQuality;
-function parseTimestamp(callTime) {
-    if (typeof callTime !== 'number') {
-        return undefined;
-    }
-    return common.callTimeToISO8601(callTime);
-}
-exports.parseTimestamp = parseTimestamp;
-function removeEmptyCounterparty(amount) {
-    if (amount.counterparty === '') {
-        delete amount.counterparty;
-    }
-}
-function removeEmptyCounterpartyInBalanceChanges(balanceChanges) {
-    _.forEach(balanceChanges, function (changes) {
-        _.forEach(changes, removeEmptyCounterparty);
-    });
-}
-function removeEmptyCounterpartyInOrderbookChanges(orderbookChanges) {
-    _.forEach(orderbookChanges, function (changes) {
-        _.forEach(changes, function (change) {
-            _.forEach(change, removeEmptyCounterparty);
-        });
-    });
-}
-function isPartialPayment(tx) {
-    return (tx.Flags & common.txFlags.Payment.PartialPayment) !== 0;
-}
-exports.isPartialPayment = isPartialPayment;
-function parseDeliveredAmount(tx) {
-    if (tx.TransactionType !== 'Payment' ||
-        tx.meta.TransactionResult !== 'tesSUCCESS') {
-        return undefined;
-    }
-    if (tx.meta.delivered_amount &&
-        tx.meta.delivered_amount === 'unavailable') {
-        return undefined;
-    }
-    // parsable delivered_amount
-    if (tx.meta.delivered_amount) {
-        return amount_1.default(tx.meta.delivered_amount);
-    }
-    // DeliveredAmount only present on partial payments
-    if (tx.meta.DeliveredAmount) {
-        return amount_1.default(tx.meta.DeliveredAmount);
-    }
-    // no partial payment flag, use tx.Amount
-    if (tx.Amount && !isPartialPayment(tx)) {
-        return amount_1.default(tx.Amount);
-    }
-    // DeliveredAmount field was introduced at
-    // ledger 4594095 - after that point its absence
-    // on a tx flagged as partial payment indicates
-    // the full amount was transferred. The amount
-    // transferred with a partial payment before
-    // that date must be derived from metadata.
-    if (tx.Amount && tx.ledger_index > 4594094) {
-        return amount_1.default(tx.Amount);
-    }
-    return undefined;
-}
-function parseOutcome(tx) {
-    var metadata = tx.meta || tx.metaData;
-    if (!metadata) {
-        return undefined;
-    }
-    var balanceChanges = transactionParser.parseBalanceChanges(metadata);
-    var orderbookChanges = transactionParser.parseOrderbookChanges(metadata);
-    removeEmptyCounterpartyInBalanceChanges(balanceChanges);
-    removeEmptyCounterpartyInOrderbookChanges(orderbookChanges);
-    return common.removeUndefined({
-        result: tx.meta.TransactionResult,
-        timestamp: parseTimestamp(tx.date),
-        fee: common.dropsToCall(tx.Fee),
-        balanceChanges: balanceChanges,
-        orderbookChanges: orderbookChanges,
-        ledgerVersion: tx.ledger_index,
-        indexInLedger: tx.meta.TransactionIndex,
-        deliveredAmount: parseDeliveredAmount(tx)
-    });
-}
-exports.parseOutcome = parseOutcome;
-function hexToString(hex) {
-    return hex ? new Buffer(hex, 'hex').toString('utf-8') : undefined;
-}
-exports.hexToString = hexToString;
-function parseMemos(tx) {
-    if (!Array.isArray(tx.Memos) || tx.Memos.length === 0) {
-        return undefined;
-    }
-    return tx.Memos.map(function (m) {
-        return common.removeUndefined({
-            type: m.Memo.parsed_memo_type || hexToString(m.Memo.MemoType),
-            format: m.Memo.parsed_memo_format || hexToString(m.Memo.MemoFormat),
-            data: m.Memo.parsed_memo_data || hexToString(m.Memo.MemoData)
-        });
-    });
-}
-exports.parseMemos = parseMemos;
 
 /* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(5).Buffer))
 
@@ -8431,7 +8431,7 @@ module.exports = g;
 "use strict";
 
 
-var assert = __webpack_require__(33);
+var assert = __webpack_require__(31);
 var inherits = __webpack_require__(3);
 
 exports.inherits = inherits;
@@ -9333,7 +9333,7 @@ exports.ensureLedgerVersion = ensureLedgerVersion;
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
-var _require = __webpack_require__(8),bytesToHex = _require.bytesToHex,slice = _require.slice;var _require2 =
+var _require = __webpack_require__(7),bytesToHex = _require.bytesToHex,slice = _require.slice;var _require2 =
 __webpack_require__(54),BytesList = _require2.BytesList;
 
 var Comparable = {
@@ -9404,7 +9404,7 @@ module.exports = {
 var hash = exports;
 
 hash.utils = __webpack_require__(15);
-hash.common = __webpack_require__(34);
+hash.common = __webpack_require__(32);
 hash.sha = __webpack_require__(113);
 hash.ripemd = __webpack_require__(117);
 hash.hmac = __webpack_require__(118);
@@ -9423,7 +9423,7 @@ hash.ripemd160 = hash.ripemd.ripemd160;
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
-var enums = __webpack_require__(26);var
+var enums = __webpack_require__(24);var
 Field = enums.Field;var _require =
 __webpack_require__(51),AccountID = _require.AccountID;var _require2 =
 __webpack_require__(280),Amount = _require2.Amount;var _require3 =
@@ -9519,7 +9519,7 @@ var objectKeys = Object.keys || function (obj) {
 module.exports = Duplex;
 
 /*<replacement>*/
-var util = Object.create(__webpack_require__(37));
+var util = Object.create(__webpack_require__(35));
 util.inherits = __webpack_require__(3);
 /*</replacement>*/
 
@@ -9613,7 +9613,7 @@ Duplex.prototype._destroy = function (err, cb) {
 "use strict";
 
 
-var uri = __webpack_require__(31);
+var uri = __webpack_require__(29);
 
 var ValidationError = exports.ValidationError = function ValidationError (message, instance, schema, propertyPath, name, argument) {
   if (propertyPath) {
@@ -9943,211 +9943,9 @@ exports.getDecimalPlaces = function getDecimalPlaces(number) {
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
- // eslint-disable-line strict
-
-var assert = __webpack_require__(2);
-var brorand = __webpack_require__(67);
-var hashjs = __webpack_require__(20);
-var elliptic = __webpack_require__(9);
-var Ed25519 = elliptic.eddsa('ed25519');
-var Secp256k1 = elliptic.ec('secp256k1');
-var addressCodec = __webpack_require__(32);
-var derivePrivateKey = __webpack_require__(68).derivePrivateKey;
-var accountPublicFromPublicGenerator = __webpack_require__(68).accountPublicFromPublicGenerator;
-var utils = __webpack_require__(145);
-var hexToBytes = utils.hexToBytes;
-var bytesToHex = utils.bytesToHex;
-
-function generateSeed() {
-  var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
-
-  assert(!options.entropy || options.entropy.length >= 16, 'entropy too short');
-  var entropy = options.entropy ? options.entropy.slice(0, 16) : brorand(16);
-  var type = options.algorithm === 'ed25519' ? 'ed25519' : 'secp256k1';
-  return addressCodec.encodeSeed(entropy, type);
-}
-
-function hash(message) {
-  return hashjs.sha512().update(message).digest().slice(0, 32);
-}
-
-var secp256k1 = {
-  deriveKeypair: function deriveKeypair(entropy, options) {
-    var prefix = '00';
-    var privateKey = prefix + derivePrivateKey(entropy, options).toString(16, 64).toUpperCase();
-    var publicKey = bytesToHex(Secp256k1.keyFromPrivate(privateKey.slice(2)).getPublic().encodeCompressed());
-    return { privateKey: privateKey, publicKey: publicKey };
-  },
-  sign: function sign(message, privateKey) {
-    return bytesToHex(Secp256k1.sign(hash(message), hexToBytes(privateKey), { canonical: true }).toDER());
-  },
-  verify: function verify(message, signature, publicKey) {
-    return Secp256k1.verify(hash(message), signature, hexToBytes(publicKey));
-  }
-};
-
-var ed25519 = {
-  deriveKeypair: function deriveKeypair(entropy) {
-    var prefix = 'ED';
-    var rawPrivateKey = hash(entropy);
-    var privateKey = prefix + bytesToHex(rawPrivateKey);
-    var publicKey = prefix + bytesToHex(Ed25519.keyFromSecret(rawPrivateKey).pubBytes());
-    return { privateKey: privateKey, publicKey: publicKey };
-  },
-  sign: function sign(message, privateKey) {
-    // caution: Ed25519.sign interprets all strings as hex, stripping
-    // any non-hex characters without warning
-    assert(Array.isArray(message), 'message must be array of octets');
-    return bytesToHex(Ed25519.sign(message, hexToBytes(privateKey).slice(1)).toBytes());
-  },
-  verify: function verify(message, signature, publicKey) {
-    return Ed25519.verify(message, hexToBytes(signature), hexToBytes(publicKey).slice(1));
-  }
-};
-
-function select(algorithm) {
-  var methods = { 'ecdsa-secp256k1': secp256k1, ed25519: ed25519 };
-  return methods[algorithm];
-}
-
-function deriveKeypair(seed, options) {
-  var decoded = addressCodec.decodeSeed(seed);
-  var algorithm = decoded.type === 'ed25519' ? 'ed25519' : 'ecdsa-secp256k1';
-  var method = select(algorithm);
-  var keypair = method.deriveKeypair(decoded.bytes, options);
-  var messageToVerify = hash('This test message should verify.');
-  var signature = method.sign(messageToVerify, keypair.privateKey);
-  if (method.verify(messageToVerify, signature, keypair.publicKey) !== true) {
-    throw new Error('derived keypair did not generate verifiable signature');
-  }
-  return keypair;
-}
-
-function getAlgorithmFromKey(key) {
-  var bytes = hexToBytes(key);
-  return bytes.length === 33 && bytes[0] === 0xED ? 'ed25519' : 'ecdsa-secp256k1';
-}
-
-function sign(messageHex, privateKey) {
-  var algorithm = getAlgorithmFromKey(privateKey);
-  return select(algorithm).sign(hexToBytes(messageHex), privateKey);
-}
-
-function verify(messageHex, signature, publicKey) {
-  var algorithm = getAlgorithmFromKey(publicKey);
-  return select(algorithm).verify(hexToBytes(messageHex), signature, publicKey);
-}
-
-function deriveAddressFromBytes(publicKeyBytes) {
-  return addressCodec.encodeAccountID(utils.computePublicKeyHash(publicKeyBytes));
-}
-
-function deriveAddress(publicKey) {
-  return deriveAddressFromBytes(hexToBytes(publicKey));
-}
-
-function deriveNodeAddress(publicKey) {
-  var generatorBytes = addressCodec.decodeNodePublic(publicKey);
-  var accountPublicBytes = accountPublicFromPublicGenerator(generatorBytes);
-  return deriveAddressFromBytes(accountPublicBytes);
-}
-
-module.exports = {
-  generateSeed: generateSeed,
-  deriveKeypair: deriveKeypair,
-  sign: sign,
-  verify: verify,
-  deriveAddress: deriveAddress,
-  deriveNodeAddress: deriveNodeAddress
-};
-
-
-/***/ }),
-/* 25 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) {return typeof obj;} : function (obj) {return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj;};var assert = __webpack_require__(2);
-var coreTypes = __webpack_require__(278);var
-quality =
-
-
-
-
-
-
-coreTypes.quality,_coreTypes$binary = coreTypes.binary,bytesToHex = _coreTypes$binary.bytesToHex,signingData = _coreTypes$binary.signingData,signingClaimData = _coreTypes$binary.signingClaimData,multiSigningData = _coreTypes$binary.multiSigningData,binaryToJSON = _coreTypes$binary.binaryToJSON,serializeObject = _coreTypes$binary.serializeObject,BinaryParser = _coreTypes$binary.BinaryParser;
-
-function decodeLedgerData(binary) {
-  assert(typeof binary === 'string', 'binary must be a hex string');
-  var parser = new BinaryParser(binary);
-  return {
-    ledger_index: parser.readUInt32(),
-    total_coins: parser.readType(coreTypes.UInt64).valueOf().toString(),
-    parent_hash: parser.readType(coreTypes.Hash256).toHex(),
-    transaction_hash: parser.readType(coreTypes.Hash256).toHex(),
-    account_hash: parser.readType(coreTypes.Hash256).toHex(),
-    parent_close_time: parser.readUInt32(),
-    close_time: parser.readUInt32(),
-    close_time_resolution: parser.readUInt8(),
-    close_flags: parser.readUInt8() };
-
-}
-
-function decode(binary) {
-  assert(typeof binary === 'string', 'binary must be a hex string');
-  return binaryToJSON(binary);
-}
-
-function encode(json) {
-  assert((typeof json === 'undefined' ? 'undefined' : _typeof(json)) === 'object');
-  return bytesToHex(serializeObject(json));
-}
-
-function encodeForSigning(json) {
-  assert((typeof json === 'undefined' ? 'undefined' : _typeof(json)) === 'object');
-  return bytesToHex(signingData(json));
-}
-
-function encodeForSigningClaim(json) {
-  assert((typeof json === 'undefined' ? 'undefined' : _typeof(json)) === 'object');
-  return bytesToHex(signingClaimData(json));
-}
-
-function encodeForMultisigning(json, signer) {
-  assert((typeof json === 'undefined' ? 'undefined' : _typeof(json)) === 'object');
-  assert.equal(json.SigningPubKey, '');
-  return bytesToHex(multiSigningData(json, signer));
-}
-
-function encodeQuality(value) {
-  assert(typeof value === 'string');
-  return bytesToHex(quality.encode(value));
-}
-
-function decodeQuality(value) {
-  assert(typeof value === 'string');
-  return quality.decode(value).toString();
-}
-
-module.exports = {
-  decode: decode,
-  encode: encode,
-  encodeForSigning: encodeForSigning,
-  encodeForSigningClaim: encodeForSigningClaim,
-  encodeForMultisigning: encodeForMultisigning,
-  encodeQuality: encodeQuality,
-  decodeQuality: decodeQuality,
-  decodeLedgerData: decodeLedgerData };
-
-/***/ }),
-/* 26 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
 var _slicedToArray = function () {function sliceIterator(arr, i) {var _arr = [];var _n = true;var _d = false;var _e = undefined;try {for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) {_arr.push(_s.value);if (i && _arr.length === i) break;}} catch (err) {_d = true;_e = err;} finally {try {if (!_n && _i["return"]) _i["return"]();} finally {if (_d) throw _e;}}return _arr;}return function (arr, i) {if (Array.isArray(arr)) {return arr;} else if (Symbol.iterator in Object(arr)) {return sliceIterator(arr, i);} else {throw new TypeError("Invalid attempt to destructure non-iterable instance");}};}();var assert = __webpack_require__(2);
 var _ = __webpack_require__(0);var _require =
-__webpack_require__(8),parseBytes = _require.parseBytes,serializeUIntN = _require.serializeUIntN;
+__webpack_require__(7),parseBytes = _require.parseBytes,serializeUIntN = _require.serializeUIntN;
 var makeClass = __webpack_require__(4);
 var enums = __webpack_require__(279);
 
@@ -10272,7 +10070,7 @@ Enums.Field = makeClass({
 module.exports = Enums;
 
 /***/ }),
-/* 27 */
+/* 25 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /* WEBPACK VAR INJECTION */(function(module) {(function (module, exports) {
@@ -13712,7 +13510,7 @@ module.exports = Enums;
 /* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(46)(module)))
 
 /***/ }),
-/* 28 */
+/* 26 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -13846,7 +13644,7 @@ module.exports.codes = codes;
 
 
 /***/ }),
-/* 29 */
+/* 27 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -13992,7 +13790,7 @@ Object.defineProperty(Duplex.prototype, 'destroyed', {
 /* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(11)))
 
 /***/ }),
-/* 30 */
+/* 28 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var Buffer = __webpack_require__(13).Buffer
@@ -14079,7 +13877,7 @@ module.exports = Hash
 
 
 /***/ }),
-/* 31 */
+/* 29 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -14818,7 +14616,7 @@ Url.prototype.parseHost = function() {
 
 
 /***/ }),
-/* 32 */
+/* 30 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -14858,7 +14656,7 @@ module.exports = apiFactory({
 
 
 /***/ }),
-/* 33 */
+/* 31 */
 /***/ (function(module, exports) {
 
 module.exports = assert;
@@ -14875,14 +14673,14 @@ assert.equal = function assertEqual(l, r, msg) {
 
 
 /***/ }),
-/* 34 */
+/* 32 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
 var utils = __webpack_require__(15);
-var assert = __webpack_require__(33);
+var assert = __webpack_require__(31);
 
 function BlockHash() {
   this.pending = null;
@@ -14974,11 +14772,11 @@ BlockHash.prototype._pad = function pad() {
 
 
 /***/ }),
-/* 35 */
+/* 33 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
-var _require = __webpack_require__(8),serializeUIntN = _require.serializeUIntN;
+var _require = __webpack_require__(7),serializeUIntN = _require.serializeUIntN;
 
 function bytes(uint32) {
   return serializeUIntN(uint32, 4);
@@ -15010,7 +14808,7 @@ module.exports = {
   HashPrefix: HashPrefix };
 
 /***/ }),
-/* 36 */
+/* 34 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -15312,7 +15110,7 @@ function simpleEnd(buf) {
 }
 
 /***/ }),
-/* 37 */
+/* 35 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /* WEBPACK VAR INJECTION */(function(Buffer) {// Copyright Joyent, Inc. and other Node contributors.
@@ -15426,7 +15224,7 @@ function objectToString(o) {
 /* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(5).Buffer))
 
 /***/ }),
-/* 38 */
+/* 36 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -15583,7 +15381,131 @@ exports.PendingLedgerVersionError = PendingLedgerVersionError;
 
 
 /***/ }),
-/* 39 */
+/* 37 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+ // eslint-disable-line strict
+
+var assert = __webpack_require__(2);
+var brorand = __webpack_require__(67);
+var hashjs = __webpack_require__(20);
+var elliptic = __webpack_require__(8);
+var Ed25519 = elliptic.eddsa('ed25519');
+var Secp256k1 = elliptic.ec('secp256k1');
+var addressCodec = __webpack_require__(30);
+var derivePrivateKey = __webpack_require__(68).derivePrivateKey;
+var accountPublicFromPublicGenerator = __webpack_require__(68).accountPublicFromPublicGenerator;
+var utils = __webpack_require__(145);
+var hexToBytes = utils.hexToBytes;
+var bytesToHex = utils.bytesToHex;
+
+function generateSeed() {
+  var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+
+  assert(!options.entropy || options.entropy.length >= 16, 'entropy too short');
+  var entropy = options.entropy ? options.entropy.slice(0, 16) : brorand(16);
+  var type = options.algorithm === 'ed25519' ? 'ed25519' : 'secp256k1';
+  return addressCodec.encodeSeed(entropy, type);
+}
+
+function hash(message) {
+  return hashjs.sha512().update(message).digest().slice(0, 32);
+}
+
+var secp256k1 = {
+  deriveKeypair: function deriveKeypair(entropy, options) {
+    var prefix = '00';
+    var privateKey = prefix + derivePrivateKey(entropy, options).toString(16, 64).toUpperCase();
+    var publicKey = bytesToHex(Secp256k1.keyFromPrivate(privateKey.slice(2)).getPublic().encodeCompressed());
+    return { privateKey: privateKey, publicKey: publicKey };
+  },
+  sign: function sign(message, privateKey) {
+    return bytesToHex(Secp256k1.sign(hash(message), hexToBytes(privateKey), { canonical: true }).toDER());
+  },
+  verify: function verify(message, signature, publicKey) {
+    return Secp256k1.verify(hash(message), signature, hexToBytes(publicKey));
+  }
+};
+
+var ed25519 = {
+  deriveKeypair: function deriveKeypair(entropy) {
+    var prefix = 'ED';
+    var rawPrivateKey = hash(entropy);
+    var privateKey = prefix + bytesToHex(rawPrivateKey);
+    var publicKey = prefix + bytesToHex(Ed25519.keyFromSecret(rawPrivateKey).pubBytes());
+    return { privateKey: privateKey, publicKey: publicKey };
+  },
+  sign: function sign(message, privateKey) {
+    // caution: Ed25519.sign interprets all strings as hex, stripping
+    // any non-hex characters without warning
+    assert(Array.isArray(message), 'message must be array of octets');
+    return bytesToHex(Ed25519.sign(message, hexToBytes(privateKey).slice(1)).toBytes());
+  },
+  verify: function verify(message, signature, publicKey) {
+    return Ed25519.verify(message, hexToBytes(signature), hexToBytes(publicKey).slice(1));
+  }
+};
+
+function select(algorithm) {
+  var methods = { 'ecdsa-secp256k1': secp256k1, ed25519: ed25519 };
+  return methods[algorithm];
+}
+
+function deriveKeypair(seed, options) {
+  var decoded = addressCodec.decodeSeed(seed);
+  var algorithm = decoded.type === 'ed25519' ? 'ed25519' : 'ecdsa-secp256k1';
+  var method = select(algorithm);
+  var keypair = method.deriveKeypair(decoded.bytes, options);
+  var messageToVerify = hash('This test message should verify.');
+  var signature = method.sign(messageToVerify, keypair.privateKey);
+  if (method.verify(messageToVerify, signature, keypair.publicKey) !== true) {
+    throw new Error('derived keypair did not generate verifiable signature');
+  }
+  return keypair;
+}
+
+function getAlgorithmFromKey(key) {
+  var bytes = hexToBytes(key);
+  return bytes.length === 33 && bytes[0] === 0xED ? 'ed25519' : 'ecdsa-secp256k1';
+}
+
+function sign(messageHex, privateKey) {
+  var algorithm = getAlgorithmFromKey(privateKey);
+  return select(algorithm).sign(hexToBytes(messageHex), privateKey);
+}
+
+function verify(messageHex, signature, publicKey) {
+  var algorithm = getAlgorithmFromKey(publicKey);
+  return select(algorithm).verify(hexToBytes(messageHex), signature, publicKey);
+}
+
+function deriveAddressFromBytes(publicKeyBytes) {
+  return addressCodec.encodeAccountID(utils.computePublicKeyHash(publicKeyBytes));
+}
+
+function deriveAddress(publicKey) {
+  return deriveAddressFromBytes(hexToBytes(publicKey));
+}
+
+function deriveNodeAddress(publicKey) {
+  var generatorBytes = addressCodec.decodeNodePublic(publicKey);
+  var accountPublicBytes = accountPublicFromPublicGenerator(generatorBytes);
+  return deriveAddressFromBytes(accountPublicBytes);
+}
+
+module.exports = {
+  generateSeed: generateSeed,
+  deriveKeypair: deriveKeypair,
+  sign: sign,
+  verify: verify,
+  deriveAddress: deriveAddress,
+  deriveNodeAddress: deriveNodeAddress
+};
+
+
+/***/ }),
+/* 38 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -15598,7 +15520,7 @@ curve.edwards = __webpack_require__(130);
 
 
 /***/ }),
-/* 40 */
+/* 39 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -15685,15 +15607,93 @@ module.exports = {
 
 
 /***/ }),
+/* 40 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) {return typeof obj;} : function (obj) {return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj;};var assert = __webpack_require__(2);
+var coreTypes = __webpack_require__(278);var
+quality =
+
+
+
+
+
+
+coreTypes.quality,_coreTypes$binary = coreTypes.binary,bytesToHex = _coreTypes$binary.bytesToHex,signingData = _coreTypes$binary.signingData,signingClaimData = _coreTypes$binary.signingClaimData,multiSigningData = _coreTypes$binary.multiSigningData,binaryToJSON = _coreTypes$binary.binaryToJSON,serializeObject = _coreTypes$binary.serializeObject,BinaryParser = _coreTypes$binary.BinaryParser;
+
+function decodeLedgerData(binary) {
+  assert(typeof binary === 'string', 'binary must be a hex string');
+  var parser = new BinaryParser(binary);
+  return {
+    ledger_index: parser.readUInt32(),
+    total_coins: parser.readType(coreTypes.UInt64).valueOf().toString(),
+    parent_hash: parser.readType(coreTypes.Hash256).toHex(),
+    transaction_hash: parser.readType(coreTypes.Hash256).toHex(),
+    account_hash: parser.readType(coreTypes.Hash256).toHex(),
+    parent_close_time: parser.readUInt32(),
+    close_time: parser.readUInt32(),
+    close_time_resolution: parser.readUInt8(),
+    close_flags: parser.readUInt8() };
+
+}
+
+function decode(binary) {
+  assert(typeof binary === 'string', 'binary must be a hex string');
+  return binaryToJSON(binary);
+}
+
+function encode(json) {
+  assert((typeof json === 'undefined' ? 'undefined' : _typeof(json)) === 'object');
+  return bytesToHex(serializeObject(json));
+}
+
+function encodeForSigning(json) {
+  assert((typeof json === 'undefined' ? 'undefined' : _typeof(json)) === 'object');
+  return bytesToHex(signingData(json));
+}
+
+function encodeForSigningClaim(json) {
+  assert((typeof json === 'undefined' ? 'undefined' : _typeof(json)) === 'object');
+  return bytesToHex(signingClaimData(json));
+}
+
+function encodeForMultisigning(json, signer) {
+  assert((typeof json === 'undefined' ? 'undefined' : _typeof(json)) === 'object');
+  assert.equal(json.SigningPubKey, '');
+  return bytesToHex(multiSigningData(json, signer));
+}
+
+function encodeQuality(value) {
+  assert(typeof value === 'string');
+  return bytesToHex(quality.encode(value));
+}
+
+function decodeQuality(value) {
+  assert(typeof value === 'string');
+  return quality.decode(value).toString();
+}
+
+module.exports = {
+  decode: decode,
+  encode: encode,
+  encodeForSigning: encodeForSigning,
+  encodeForSigningClaim: encodeForSigningClaim,
+  encodeForMultisigning: encodeForMultisigning,
+  encodeQuality: encodeQuality,
+  decodeQuality: decodeQuality,
+  decodeLedgerData: decodeLedgerData };
+
+/***/ }),
 /* 41 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 var assert = __webpack_require__(2);
-var BN = __webpack_require__(27);
+var BN = __webpack_require__(25);
 var makeClass = __webpack_require__(4);var _require =
 __webpack_require__(19),Comparable = _require.Comparable,SerializedType = _require.SerializedType;var _require2 =
-__webpack_require__(8),serializeUIntN = _require2.serializeUIntN;
+__webpack_require__(7),serializeUIntN = _require2.serializeUIntN;
 var MAX_VALUES = [0, 255, 65535, 16777215, 4294967295];
 
 function signum(a, b) {
@@ -15756,9 +15756,9 @@ module.exports = {
 
 "use strict";
 /* WEBPACK VAR INJECTION */(function(Buffer) {var makeClass = __webpack_require__(4);var _require =
-__webpack_require__(35),HashPrefix = _require.HashPrefix;var _require2 =
+__webpack_require__(33),HashPrefix = _require.HashPrefix;var _require2 =
 __webpack_require__(21),Hash256 = _require2.Hash256;var _require3 =
-__webpack_require__(8),parseBytes = _require3.parseBytes;
+__webpack_require__(7),parseBytes = _require3.parseBytes;
 var createHash = __webpack_require__(78);
 
 var Sha512Half = makeClass({
@@ -15859,8 +15859,8 @@ function nextTick(fn, arg1, arg2, arg3) {
 "use strict";
 /* WEBPACK VAR INJECTION */(function(Buffer) {
 var BigNumber = __webpack_require__(6);
-var decodeAddress = __webpack_require__(32).decodeAddress;
-var binary = __webpack_require__(25);
+var decodeAddress = __webpack_require__(30).decodeAddress;
+var binary = __webpack_require__(40);
 var hashprefixes = __webpack_require__(94);
 var SHAMap = __webpack_require__(95).SHAMap;
 var SHAMapTreeNode = __webpack_require__(95).SHAMapTreeNode;
@@ -16779,7 +16779,7 @@ module.exports = function(module) {
 /***/ (function(module, exports, __webpack_require__) {
 
 
-var urilib = __webpack_require__(31);
+var urilib = __webpack_require__(29);
 var helpers = __webpack_require__(23);
 
 module.exports.SchemaScanResult = SchemaScanResult;
@@ -16863,7 +16863,7 @@ module.exports.scan = function scan(base, schema){
 Object.defineProperty(exports, "__esModule", { value: true });
 var _ = __webpack_require__(0);
 var bignumber_js_1 = __webpack_require__(6);
-var deriveKeypair = __webpack_require__(24).deriveKeypair;
+var deriveKeypair = __webpack_require__(37).deriveKeypair;
 function isValidSecret(secret) {
     try {
         deriveKeypair(secret);
@@ -17215,7 +17215,7 @@ formatters.j = function (v) {
 
 Object.defineProperty(exports, "__esModule", { value: true });
 var assert = __webpack_require__(2);
-var utils_1 = __webpack_require__(10);
+var utils_1 = __webpack_require__(9);
 var common_1 = __webpack_require__(1);
 var payment_1 = __webpack_require__(263);
 var trustline_1 = __webpack_require__(264);
@@ -17292,7 +17292,7 @@ exports.default = parseTransaction;
 
 "use strict";
 var makeClass = __webpack_require__(4);var _require =
-__webpack_require__(32),decodeAccountID = _require.decodeAccountID,encodeAccountID = _require.encodeAccountID;var _require2 =
+__webpack_require__(30),decodeAccountID = _require.decodeAccountID,encodeAccountID = _require.encodeAccountID;var _require2 =
 __webpack_require__(52),Hash160 = _require2.Hash160;
 
 var AccountID = makeClass({
@@ -17357,7 +17357,7 @@ module.exports = {
 var assert = __webpack_require__(2);
 var makeClass = __webpack_require__(4);var _require =
 __webpack_require__(19),Comparable = _require.Comparable,SerializedType = _require.SerializedType;var _require2 =
-__webpack_require__(8),compareBytes = _require2.compareBytes,parseBytes = _require2.parseBytes;
+__webpack_require__(7),compareBytes = _require2.compareBytes,parseBytes = _require2.parseBytes;
 
 var Hash = makeClass({
   Hash: function Hash(bytes) {
@@ -17406,9 +17406,9 @@ module.exports = {
 
 "use strict";
 var assert = __webpack_require__(2);var _require =
-__webpack_require__(8),parseBytes = _require.parseBytes,bytesToHex = _require.bytesToHex;
+__webpack_require__(7),parseBytes = _require.parseBytes,bytesToHex = _require.bytesToHex;
 var makeClass = __webpack_require__(4);var _require2 =
-__webpack_require__(26),Type = _require2.Type,Field = _require2.Field;
+__webpack_require__(24),Type = _require2.Type,Field = _require2.Field;
 
 var BytesSink = {
   put: function put() /* bytesSequence */{
@@ -17519,7 +17519,7 @@ module.exports = {
 "use strict";
 var _ = __webpack_require__(0);
 var makeClass = __webpack_require__(4);var _require =
-__webpack_require__(8),slice = _require.slice;var _require2 =
+__webpack_require__(7),slice = _require.slice;var _require2 =
 __webpack_require__(52),Hash160 = _require2.Hash160;
 var ISO_REGEX = /^[A-Z0-9]{3}$/;
 var HEX_REGEX = /^[A-F0-9]{40}$/;
@@ -17616,12 +17616,12 @@ module.exports = {
 "use strict";
  /* eslint-disable func-style */
 
-var BN = __webpack_require__(27);
+var BN = __webpack_require__(25);
 var types = __webpack_require__(21);var _require =
-__webpack_require__(35),HashPrefix = _require.HashPrefix;var _require2 =
+__webpack_require__(33),HashPrefix = _require.HashPrefix;var _require2 =
 __webpack_require__(290),BinaryParser = _require2.BinaryParser;var _require3 =
 __webpack_require__(54),BinarySerializer = _require3.BinarySerializer,BytesList = _require3.BytesList;var _require4 =
-__webpack_require__(8),bytesToHex = _require4.bytesToHex,slice = _require4.slice,parseBytes = _require4.parseBytes;var _require5 =
+__webpack_require__(7),bytesToHex = _require4.bytesToHex,slice = _require4.slice,parseBytes = _require4.parseBytes;var _require5 =
 
 __webpack_require__(42),sha512Half = _require5.sha512Half,transactionID = _require5.transactionID;
 
@@ -17692,7 +17692,7 @@ module.exports = {
 // permission from the author, Mathias Buus (@mafintosh).
 
 
-var ERR_STREAM_PREMATURE_CLOSE = __webpack_require__(28).codes.ERR_STREAM_PREMATURE_CLOSE;
+var ERR_STREAM_PREMATURE_CLOSE = __webpack_require__(26).codes.ERR_STREAM_PREMATURE_CLOSE;
 
 function once(callback) {
   var called = false;
@@ -17945,7 +17945,7 @@ var Duplex;
 Writable.WritableState = WritableState;
 
 /*<replacement>*/
-var util = Object.create(__webpack_require__(37));
+var util = Object.create(__webpack_require__(35));
 util.inherits = __webpack_require__(3);
 /*</replacement>*/
 
@@ -18609,27 +18609,22 @@ var accountbyname_1 = __webpack_require__(334);
 var accountissues_1 = __webpack_require__(335);
 var accountinvoices_1 = __webpack_require__(336);
 var payment_channel_1 = __webpack_require__(337);
-var issue_set_1 = __webpack_require__(339);
-var payment_1 = __webpack_require__(340);
-var trustline_1 = __webpack_require__(341);
-var order_1 = __webpack_require__(342);
-var ordercancellation_1 = __webpack_require__(343);
-var escrow_creation_1 = __webpack_require__(344);
-var escrow_execution_1 = __webpack_require__(345);
-var escrow_cancellation_1 = __webpack_require__(346);
-var payment_channel_create_1 = __webpack_require__(347);
-var payment_channel_fund_1 = __webpack_require__(348);
-var payment_channel_claim_1 = __webpack_require__(349);
-var settings_2 = __webpack_require__(350);
-var sign_1 = __webpack_require__(351);
-var combine_1 = __webpack_require__(352);
-var submit_1 = __webpack_require__(353);
-var generate_address_1 = __webpack_require__(354);
-var address_fromSecret_1 = __webpack_require__(355);
-var ledgerhash_1 = __webpack_require__(356);
-var sign_payment_channel_claim_1 = __webpack_require__(357);
-var verify_payment_channel_claim_1 = __webpack_require__(358);
-var ledger_1 = __webpack_require__(359);
+var payment_1 = __webpack_require__(339);
+var trustline_1 = __webpack_require__(340);
+var order_1 = __webpack_require__(341);
+var ordercancellation_1 = __webpack_require__(342);
+var escrow_creation_1 = __webpack_require__(343);
+var escrow_execution_1 = __webpack_require__(344);
+var escrow_cancellation_1 = __webpack_require__(345);
+var settings_2 = __webpack_require__(346);
+var issue_set_1 = __webpack_require__(347);
+var sign_1 = __webpack_require__(348);
+var combine_1 = __webpack_require__(349);
+var submit_1 = __webpack_require__(350);
+var generate_address_1 = __webpack_require__(351);
+var address_fromSecret_1 = __webpack_require__(352);
+var ledgerhash_1 = __webpack_require__(353);
+var ledger_1 = __webpack_require__(354);
 var rangeset_1 = __webpack_require__(70);
 var ledgerUtils = __webpack_require__(18);
 var schemaValidator = __webpack_require__(63);
@@ -18685,9 +18680,6 @@ var CallAPI = /** @class */ (function (_super) {
         _this.prepareEscrowCreation = escrow_creation_1.default;
         _this.prepareEscrowExecution = escrow_execution_1.default;
         _this.prepareEscrowCancellation = escrow_cancellation_1.default;
-        _this.preparePaymentChannelCreate = payment_channel_create_1.default;
-        _this.preparePaymentChannelFund = payment_channel_fund_1.default;
-        _this.preparePaymentChannelClaim = payment_channel_claim_1.default;
         _this.prepareSettings = settings_2.default;
         _this.sign = sign_1.default;
         _this.combine = combine_1.default;
@@ -18695,8 +18687,6 @@ var CallAPI = /** @class */ (function (_super) {
         _this.generateAddress = generate_address_1.generateAddressAPI;
         _this.fromSecret = address_fromSecret_1.fromSecret;
         _this.computeLedgerHash = ledgerhash_1.default;
-        _this.signPaymentChannelClaim = sign_payment_channel_claim_1.default;
-        _this.verifyPaymentChannelClaim = verify_payment_channel_claim_1.default;
         _this.errors = common_1.errors;
         common_1.validate.apiOptions(options);
         _this._feeCushion = options.feeCushion || 1.2;
@@ -18815,8 +18805,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 var _ = __webpack_require__(0);
 var assert = __webpack_require__(2);
 var Validator = __webpack_require__(105).Validator;
-var errors_1 = __webpack_require__(38);
-var call_address_codec_1 = __webpack_require__(32);
+var errors_1 = __webpack_require__(36);
+var call_address_codec_1 = __webpack_require__(30);
 var utils_1 = __webpack_require__(48);
 exports.isValidSecret = utils_1.isValidSecret;
 function loadSchemas() {
@@ -19026,9 +19016,9 @@ exports.g1_256 = g1_256;
 
 
 var utils = __webpack_require__(15);
-var common = __webpack_require__(34);
+var common = __webpack_require__(32);
 var shaCommon = __webpack_require__(64);
-var assert = __webpack_require__(33);
+var assert = __webpack_require__(31);
 
 var sum32 = utils.sum32;
 var sum32_4 = utils.sum32_4;
@@ -19138,8 +19128,8 @@ SHA256.prototype._digest = function digest(enc) {
 
 
 var utils = __webpack_require__(15);
-var common = __webpack_require__(34);
-var assert = __webpack_require__(33);
+var common = __webpack_require__(32);
+var assert = __webpack_require__(31);
 
 var rotr64_hi = utils.rotr64_hi;
 var rotr64_lo = utils.rotr64_lo;
@@ -19545,7 +19535,7 @@ if (typeof self === 'object') {
 "use strict";
  // eslint-disable-line strict
 
-var elliptic = __webpack_require__(9);
+var elliptic = __webpack_require__(8);
 var secp256k1 = elliptic.ec('secp256k1');
 var Sha512 = __webpack_require__(139);
 
@@ -19781,8 +19771,8 @@ exports.default = getTransaction;
 
 var _ = __webpack_require__(0)
 var BigNumber = __webpack_require__(6)
-var normalizeNodes = __webpack_require__(40).normalizeNodes
-var dropsToCALL = __webpack_require__(40).dropsToCALL
+var normalizeNodes = __webpack_require__(39).normalizeNodes
+var dropsToCALL = __webpack_require__(39).dropsToCALL
 
 function groupByAddress(balanceChanges) {
   var grouped = _.groupBy(balanceChanges, function(node) {
@@ -25002,10 +24992,10 @@ var __WEBPACK_AMD_DEFINE_RESULT__;/*! decimal.js v5.0.8 https://github.com/MikeM
 
 "use strict";
 var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) {return typeof obj;} : function (obj) {return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj;};var assert = __webpack_require__(2);
-var BN = __webpack_require__(27);
+var BN = __webpack_require__(25);
 var makeClass = __webpack_require__(4);var _require =
 
-__webpack_require__(8),bytesToHex = _require.bytesToHex,parseBytes = _require.parseBytes,serializeUIntN = _require.serializeUIntN;var _require2 =
+__webpack_require__(7),bytesToHex = _require.bytesToHex,parseBytes = _require.parseBytes,serializeUIntN = _require.serializeUIntN;var _require2 =
 __webpack_require__(41),UInt = _require2.UInt;
 
 var HEX_REGEX = /^[A-F0-9]{16}$/;
@@ -25079,7 +25069,7 @@ module.exports = {
 "use strict";
 var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) {return typeof obj;} : function (obj) {return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj;};var _ = __webpack_require__(0);
 var makeClass = __webpack_require__(4);var _require =
-__webpack_require__(26),Field = _require.Field;var _require2 =
+__webpack_require__(24),Field = _require.Field;var _require2 =
 __webpack_require__(54),BinarySerializer = _require2.BinarySerializer;var
 ObjectEndMarker = Field.ObjectEndMarker;var _require3 =
 __webpack_require__(19),SerializedType = _require3.SerializedType;
@@ -25365,7 +25355,7 @@ var destroyImpl = __webpack_require__(82);
 var _require = __webpack_require__(83),
     getHighWaterMark = _require.getHighWaterMark;
 
-var _require$codes = __webpack_require__(28).codes,
+var _require$codes = __webpack_require__(26).codes,
     ERR_INVALID_ARG_TYPE = _require$codes.ERR_INVALID_ARG_TYPE,
     ERR_STREAM_PUSH_AFTER_EOF = _require$codes.ERR_STREAM_PUSH_AFTER_EOF,
     ERR_METHOD_NOT_IMPLEMENTED = _require$codes.ERR_METHOD_NOT_IMPLEMENTED,
@@ -25393,7 +25383,7 @@ function prependListener(emitter, event, fn) {
 }
 
 function ReadableState(options, stream, isDuplex) {
-  Duplex = Duplex || __webpack_require__(29);
+  Duplex = Duplex || __webpack_require__(27);
   options = options || {}; // Duplex streams are both readable and writable, but share
   // the same options object.
   // However, some cases require setting options to different
@@ -25449,14 +25439,14 @@ function ReadableState(options, stream, isDuplex) {
   this.encoding = null;
 
   if (options.encoding) {
-    if (!StringDecoder) StringDecoder = __webpack_require__(36).StringDecoder;
+    if (!StringDecoder) StringDecoder = __webpack_require__(34).StringDecoder;
     this.decoder = new StringDecoder(options.encoding);
     this.encoding = options.encoding;
   }
 }
 
 function Readable(options) {
-  Duplex = Duplex || __webpack_require__(29);
+  Duplex = Duplex || __webpack_require__(27);
   if (!(this instanceof Readable)) return new Readable(options); // Checking for a Stream.Duplex instance is faster here instead of inside
   // the ReadableState constructor, at least with V8 6.5
 
@@ -25611,7 +25601,7 @@ Readable.prototype.isPaused = function () {
 
 
 Readable.prototype.setEncoding = function (enc) {
-  if (!StringDecoder) StringDecoder = __webpack_require__(36).StringDecoder;
+  if (!StringDecoder) StringDecoder = __webpack_require__(34).StringDecoder;
   var decoder = new StringDecoder(enc);
   this._readableState.decoder = decoder; // If setEncoding(null), decoder.encoding equals utf8
 
@@ -26539,7 +26529,7 @@ module.exports = {
 "use strict";
 
 
-var ERR_INVALID_OPT_VALUE = __webpack_require__(28).codes.ERR_INVALID_OPT_VALUE;
+var ERR_INVALID_OPT_VALUE = __webpack_require__(26).codes.ERR_INVALID_OPT_VALUE;
 
 function highWaterMarkFrom(options, isDuplex, duplexKey) {
   return options.highWaterMark != null ? options.highWaterMark : isDuplex ? options[duplexKey] : null;
@@ -26656,7 +26646,7 @@ var destroyImpl = __webpack_require__(82);
 var _require = __webpack_require__(83),
     getHighWaterMark = _require.getHighWaterMark;
 
-var _require$codes = __webpack_require__(28).codes,
+var _require$codes = __webpack_require__(26).codes,
     ERR_INVALID_ARG_TYPE = _require$codes.ERR_INVALID_ARG_TYPE,
     ERR_METHOD_NOT_IMPLEMENTED = _require$codes.ERR_METHOD_NOT_IMPLEMENTED,
     ERR_MULTIPLE_CALLBACK = _require$codes.ERR_MULTIPLE_CALLBACK,
@@ -26673,7 +26663,7 @@ __webpack_require__(3)(Writable, Stream);
 function nop() {}
 
 function WritableState(options, stream, isDuplex) {
-  Duplex = Duplex || __webpack_require__(29);
+  Duplex = Duplex || __webpack_require__(27);
   options = options || {}; // Duplex streams are both readable and writable, but share
   // the same options object.
   // However, some cases require setting options to different
@@ -26799,7 +26789,7 @@ if (typeof Symbol === 'function' && Symbol.hasInstance && typeof Function.protot
 }
 
 function Writable(options) {
-  Duplex = Duplex || __webpack_require__(29); // Writable ctor is applied to Duplexes, too.
+  Duplex = Duplex || __webpack_require__(27); // Writable ctor is applied to Duplexes, too.
   // `realHasInstance` is necessary because using plain `instanceof`
   // would return false, as no `_writableState` property is attached.
   // Trying to use the custom `instanceof` for Writable here will also break the
@@ -27413,13 +27403,13 @@ function config (name) {
 
 module.exports = Transform;
 
-var _require$codes = __webpack_require__(28).codes,
+var _require$codes = __webpack_require__(26).codes,
     ERR_METHOD_NOT_IMPLEMENTED = _require$codes.ERR_METHOD_NOT_IMPLEMENTED,
     ERR_MULTIPLE_CALLBACK = _require$codes.ERR_MULTIPLE_CALLBACK,
     ERR_TRANSFORM_ALREADY_TRANSFORMING = _require$codes.ERR_TRANSFORM_ALREADY_TRANSFORMING,
     ERR_TRANSFORM_WITH_LENGTH_0 = _require$codes.ERR_TRANSFORM_WITH_LENGTH_0;
 
-var Duplex = __webpack_require__(29);
+var Duplex = __webpack_require__(27);
 
 __webpack_require__(3)(Transform, Duplex);
 
@@ -27563,7 +27553,7 @@ function done(stream, er, data) {
  */
 
 var inherits = __webpack_require__(3)
-var Hash = __webpack_require__(30)
+var Hash = __webpack_require__(28)
 var Buffer = __webpack_require__(13).Buffer
 
 var K = [
@@ -27696,7 +27686,7 @@ module.exports = Sha256
 /***/ (function(module, exports, __webpack_require__) {
 
 var inherits = __webpack_require__(3)
-var Hash = __webpack_require__(30)
+var Hash = __webpack_require__(28)
 var Buffer = __webpack_require__(13).Buffer
 
 var K = [
@@ -28028,7 +28018,7 @@ function _isUint8Array(obj) {
 /*</replacement>*/
 
 /*<replacement>*/
-var util = Object.create(__webpack_require__(37));
+var util = Object.create(__webpack_require__(35));
 util.inherits = __webpack_require__(3);
 /*</replacement>*/
 
@@ -28133,7 +28123,7 @@ function ReadableState(options, stream) {
   this.decoder = null;
   this.encoding = null;
   if (options.encoding) {
-    if (!StringDecoder) StringDecoder = __webpack_require__(36).StringDecoder;
+    if (!StringDecoder) StringDecoder = __webpack_require__(34).StringDecoder;
     this.decoder = new StringDecoder(options.encoding);
     this.encoding = options.encoding;
   }
@@ -28289,7 +28279,7 @@ Readable.prototype.isPaused = function () {
 
 // backwards compatibility.
 Readable.prototype.setEncoding = function (enc) {
-  if (!StringDecoder) StringDecoder = __webpack_require__(36).StringDecoder;
+  if (!StringDecoder) StringDecoder = __webpack_require__(34).StringDecoder;
   this._readableState.decoder = new StringDecoder(enc);
   this._readableState.encoding = enc;
   return this;
@@ -29145,7 +29135,7 @@ module.exports = Transform;
 var Duplex = __webpack_require__(22);
 
 /*<replacement>*/
-var util = Object.create(__webpack_require__(37));
+var util = Object.create(__webpack_require__(35));
 util.inherits = __webpack_require__(3);
 /*</replacement>*/
 
@@ -29298,7 +29288,7 @@ function done(stream, er, data) {
 var assert = __webpack_require__(2);
 var makeClass = __webpack_require__(4);var _require =
 __webpack_require__(21),Hash256 = _require.Hash256;var _require2 =
-__webpack_require__(35),HashPrefix = _require2.HashPrefix;var _require3 =
+__webpack_require__(33),HashPrefix = _require2.HashPrefix;var _require3 =
 __webpack_require__(42),Hasher = _require3.Sha512Half;
 
 var ShaMapNode = makeClass({
@@ -29809,7 +29799,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 var api_1 = __webpack_require__(61);
 exports.CallAPI = api_1.CallAPI;
 // Broadcast api is experimental
-var broadcast_1 = __webpack_require__(361);
+var broadcast_1 = __webpack_require__(356);
 exports.CallAPIBroadcast = broadcast_1.CallAPIBroadcast;
 
 
@@ -29937,7 +29927,7 @@ exports.getConstructorName = getConstructorName;
 
 Object.defineProperty(exports, "__esModule", { value: true });
 var _ = __webpack_require__(0);
-var errors_1 = __webpack_require__(38);
+var errors_1 = __webpack_require__(36);
 var schema_validator_1 = __webpack_require__(63);
 function error(text) {
     return new errors_1.ValidationError(text);
@@ -30114,7 +30104,7 @@ module.exports.validate = function (instance, schema, options) {
 "use strict";
 
 
-var urilib = __webpack_require__(31);
+var urilib = __webpack_require__(29);
 
 var attribute = __webpack_require__(112);
 var helpers = __webpack_require__(23);
@@ -32039,7 +32029,7 @@ exports.sha512 = __webpack_require__(66);
 
 
 var utils = __webpack_require__(15);
-var common = __webpack_require__(34);
+var common = __webpack_require__(32);
 var shaCommon = __webpack_require__(64);
 
 var rotl32 = utils.rotl32;
@@ -32199,7 +32189,7 @@ SHA384.prototype._digest = function digest(enc) {
 
 
 var utils = __webpack_require__(15);
-var common = __webpack_require__(34);
+var common = __webpack_require__(32);
 
 var rotl32 = utils.rotl32;
 var sum32 = utils.sum32;
@@ -32352,7 +32342,7 @@ var sh = [
 
 
 var utils = __webpack_require__(15);
-var assert = __webpack_require__(33);
+var assert = __webpack_require__(31);
 
 function Hmac(hash, key, enc) {
   if (!(this instanceof Hmac))
@@ -33035,7 +33025,7 @@ utils.intFromLE = intFromLE;
 
 
 var hash = __webpack_require__(20);
-var elliptic = __webpack_require__(9);
+var elliptic = __webpack_require__(8);
 var utils = elliptic.utils;
 var assert = utils.assert;
 
@@ -33156,7 +33146,7 @@ HmacDRBG.prototype.generate = function generate(len, enc, add, addEnc) {
 
 
 var bn = __webpack_require__(12);
-var elliptic = __webpack_require__(9);
+var elliptic = __webpack_require__(8);
 var utils = elliptic.utils;
 var getNAF = utils.getNAF;
 var getJSF = utils.getJSF;
@@ -33513,8 +33503,8 @@ BasePoint.prototype.dblp = function dblp(k) {
 "use strict";
 
 
-var curve = __webpack_require__(39);
-var elliptic = __webpack_require__(9);
+var curve = __webpack_require__(38);
+var elliptic = __webpack_require__(8);
 var bn = __webpack_require__(12);
 var inherits = __webpack_require__(3);
 var Base = curve.base;
@@ -34427,12 +34417,12 @@ JPoint.prototype.isInfinity = function isInfinity() {
 "use strict";
 
 
-var curve = __webpack_require__(39);
+var curve = __webpack_require__(38);
 var bn = __webpack_require__(12);
 var inherits = __webpack_require__(3);
 var Base = curve.base;
 
-var elliptic = __webpack_require__(9);
+var elliptic = __webpack_require__(8);
 var utils = elliptic.utils;
 
 function MontCurve(conf) {
@@ -34610,8 +34600,8 @@ Point.prototype.getX = function getX() {
 "use strict";
 
 
-var curve = __webpack_require__(39);
-var elliptic = __webpack_require__(9);
+var curve = __webpack_require__(38);
+var elliptic = __webpack_require__(8);
 var bn = __webpack_require__(12);
 var inherits = __webpack_require__(3);
 var Base = curve.base;
@@ -35026,7 +35016,7 @@ Point.prototype.mixedAdd = Point.prototype.add;
 var curves = exports;
 
 var hash = __webpack_require__(20);
-var elliptic = __webpack_require__(9);
+var elliptic = __webpack_require__(8);
 
 var assert = elliptic.utils.assert;
 
@@ -36022,7 +36012,7 @@ module.exports = {
 
 
 var bn = __webpack_require__(12);
-var elliptic = __webpack_require__(9);
+var elliptic = __webpack_require__(8);
 var utils = elliptic.utils;
 var assert = utils.assert;
 
@@ -36354,7 +36344,7 @@ KeyPair.prototype.inspect = function inspect() {
 
 var bn = __webpack_require__(12);
 
-var elliptic = __webpack_require__(9);
+var elliptic = __webpack_require__(8);
 var utils = elliptic.utils;
 var assert = utils.assert;
 
@@ -36495,7 +36485,7 @@ Signature.prototype.toDER = function toDER(enc) {
 
 
 var hash = __webpack_require__(20);
-var elliptic = __webpack_require__(9);
+var elliptic = __webpack_require__(8);
 var utils = elliptic.utils;
 var assert = utils.assert;
 var parseBytes = utils.parseBytes;
@@ -36619,7 +36609,7 @@ EDDSA.prototype.isPoint = function isPoint(val) {
 "use strict";
 
 
-var elliptic = __webpack_require__(9);
+var elliptic = __webpack_require__(8);
 var utils = elliptic.utils;
 var assert = utils.assert;
 var parseBytes = utils.parseBytes;
@@ -36723,7 +36713,7 @@ module.exports = KeyPair;
 
 
 var bn = __webpack_require__(12);
-var elliptic = __webpack_require__(9);
+var elliptic = __webpack_require__(8);
 var utils = elliptic.utils;
 var assert = utils.assert;
 var cachedProperty = utils.cachedProperty;
@@ -37633,10 +37623,10 @@ var __extends = (this && this.__extends) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 var _ = __webpack_require__(0);
 var events_1 = __webpack_require__(17);
-var url_1 = __webpack_require__(31);
+var url_1 = __webpack_require__(29);
 var WebSocket = __webpack_require__(251);
 var rangeset_1 = __webpack_require__(70);
-var errors_1 = __webpack_require__(38);
+var errors_1 = __webpack_require__(36);
 function isStreamMessageType(type) {
     return type === 'ledgerClosed' ||
         type === 'transaction' ||
@@ -38432,7 +38422,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const net_1 = __importDefault(__webpack_require__(!(function webpackMissingModule() { var e = new Error("Cannot find module \"net\""); e.code = 'MODULE_NOT_FOUND'; throw e; }())));
 const tls_1 = __importDefault(__webpack_require__(!(function webpackMissingModule() { var e = new Error("Cannot find module \"tls\""); e.code = 'MODULE_NOT_FOUND'; throw e; }())));
-const url_1 = __importDefault(__webpack_require__(31));
+const url_1 = __importDefault(__webpack_require__(29));
 const assert_1 = __importDefault(__webpack_require__(2));
 const debug_1 = __importDefault(__webpack_require__(49));
 const agent_base_1 = __webpack_require__(256);
@@ -39404,7 +39394,7 @@ module.exports.parseFinalBalances =
   __webpack_require__(72).parseFinalBalances
 module.exports.parseOrderbookChanges =
   __webpack_require__(261).parseOrderbookChanges
-module.exports.getAffectedAccounts = __webpack_require__(40).getAffectedAccounts
+module.exports.getAffectedAccounts = __webpack_require__(39).getAffectedAccounts
 
 
 /***/ }),
@@ -39414,7 +39404,7 @@ module.exports.getAffectedAccounts = __webpack_require__(40).getAffectedAccounts
 "use strict";
 
 var _ = __webpack_require__(0)
-var utils = __webpack_require__(40)
+var utils = __webpack_require__(39)
 var GlobalBigNumber = __webpack_require__(6)
 var BigNumber = GlobalBigNumber.another({DECIMAL_PLACES: 40})
 var parseQuality = __webpack_require__(262)
@@ -39601,7 +39591,7 @@ module.exports = parseQuality
 Object.defineProperty(exports, "__esModule", { value: true });
 var _ = __webpack_require__(0);
 var assert = __webpack_require__(2);
-var utils = __webpack_require__(10);
+var utils = __webpack_require__(9);
 var common_1 = __webpack_require__(1);
 var amount_1 = __webpack_require__(16);
 function isNoDirectCall(tx) {
@@ -39648,7 +39638,7 @@ exports.default = parsePayment;
 
 Object.defineProperty(exports, "__esModule", { value: true });
 var assert = __webpack_require__(2);
-var utils_1 = __webpack_require__(10);
+var utils_1 = __webpack_require__(9);
 var common_1 = __webpack_require__(1);
 var flags = common_1.txFlags.TrustSet;
 function parseFlag(flagsValue, trueValue, falseValue) {
@@ -39711,7 +39701,7 @@ exports.default = parseIssueSet;
 
 Object.defineProperty(exports, "__esModule", { value: true });
 var assert = __webpack_require__(2);
-var utils_1 = __webpack_require__(10);
+var utils_1 = __webpack_require__(9);
 var amount_1 = __webpack_require__(16);
 var common_1 = __webpack_require__(1);
 var flags = common_1.txFlags.OfferCreate;
@@ -39824,7 +39814,7 @@ exports.default = parseSettings;
 Object.defineProperty(exports, "__esModule", { value: true });
 var assert = __webpack_require__(2);
 var amount_1 = __webpack_require__(16);
-var utils_1 = __webpack_require__(10);
+var utils_1 = __webpack_require__(9);
 var common_1 = __webpack_require__(1);
 function parseEscrowCreation(tx) {
     assert(tx.TransactionType === 'EscrowCreate');
@@ -39850,7 +39840,7 @@ exports.default = parseEscrowCreation;
 
 Object.defineProperty(exports, "__esModule", { value: true });
 var assert = __webpack_require__(2);
-var utils_1 = __webpack_require__(10);
+var utils_1 = __webpack_require__(9);
 var common_1 = __webpack_require__(1);
 function parseEscrowExecution(tx) {
     assert(tx.TransactionType === 'EscrowFinish');
@@ -39873,7 +39863,7 @@ exports.default = parseEscrowExecution;
 
 Object.defineProperty(exports, "__esModule", { value: true });
 var assert = __webpack_require__(2);
-var utils_1 = __webpack_require__(10);
+var utils_1 = __webpack_require__(9);
 var common_1 = __webpack_require__(1);
 function parseEscrowCancellation(tx) {
     assert(tx.TransactionType === 'EscrowCancel');
@@ -39894,7 +39884,7 @@ exports.default = parseEscrowCancellation;
 
 Object.defineProperty(exports, "__esModule", { value: true });
 var assert = __webpack_require__(2);
-var utils_1 = __webpack_require__(10);
+var utils_1 = __webpack_require__(9);
 var common_1 = __webpack_require__(1);
 var amount_1 = __webpack_require__(16);
 function parsePaymentChannelCreate(tx) {
@@ -39920,7 +39910,7 @@ exports.default = parsePaymentChannelCreate;
 
 Object.defineProperty(exports, "__esModule", { value: true });
 var assert = __webpack_require__(2);
-var utils_1 = __webpack_require__(10);
+var utils_1 = __webpack_require__(9);
 var common_1 = __webpack_require__(1);
 var amount_1 = __webpack_require__(16);
 function parsePaymentChannelFund(tx) {
@@ -40004,7 +39994,7 @@ exports.default = parseAmendment;
 
 Object.defineProperty(exports, "__esModule", { value: true });
 var _ = __webpack_require__(0);
-var binary = __webpack_require__(25);
+var binary = __webpack_require__(40);
 var computeTransactionHash = __webpack_require__(44).computeTransactionHash;
 var utils = __webpack_require__(18);
 var transaction_1 = __webpack_require__(50);
@@ -40148,7 +40138,7 @@ exports.default = getTransactions;
 
 "use strict";
 var _ = __webpack_require__(0);
-var enums = __webpack_require__(26);var
+var enums = __webpack_require__(24);var
 Field = enums.Field;
 var types = __webpack_require__(21);
 var binary = __webpack_require__(56);var _require =
@@ -40157,7 +40147,7 @@ var ledgerHashes = __webpack_require__(318);
 var hashes = __webpack_require__(42);
 var quality = __webpack_require__(319);
 var signing = __webpack_require__(320);var _require2 =
-__webpack_require__(35),HashPrefix = _require2.HashPrefix;
+__webpack_require__(33),HashPrefix = _require2.HashPrefix;
 
 
 module.exports = _.assign({
@@ -40185,11 +40175,11 @@ module.exports = {"TYPES":{"Validation":10003,"Done":-1,"Hash128":4,"Blob":7,"Ac
 "use strict";
 var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) {return typeof obj;} : function (obj) {return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj;};function _toConsumableArray(arr) {if (Array.isArray(arr)) {for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) {arr2[i] = arr[i];}return arr2;} else {return Array.from(arr);}}var _ = __webpack_require__(0);
 var assert = __webpack_require__(2);
-var BN = __webpack_require__(27);
+var BN = __webpack_require__(25);
 var Decimal = __webpack_require__(74);
 var makeClass = __webpack_require__(4);var _require =
 __webpack_require__(19),SerializedType = _require.SerializedType;var _require2 =
-__webpack_require__(8),bytesToHex = _require2.bytesToHex;var _require3 =
+__webpack_require__(7),bytesToHex = _require2.bytesToHex;var _require3 =
 __webpack_require__(55),Currency = _require3.Currency;var _require4 =
 __webpack_require__(51),AccountID = _require4.AccountID;var _require5 =
 __webpack_require__(75),UInt64 = _require5.UInt64;
@@ -40393,7 +40383,7 @@ module.exports = {
 
 "use strict";
 var makeClass = __webpack_require__(4);var _require =
-__webpack_require__(8),parseBytes = _require.parseBytes;var _require2 =
+__webpack_require__(7),parseBytes = _require.parseBytes;var _require2 =
 __webpack_require__(19),SerializedType = _require2.SerializedType;
 
 var Blob = makeClass({
@@ -40562,7 +40552,7 @@ module.exports = {
 "use strict";
 var makeClass = __webpack_require__(4);var _require =
 __webpack_require__(19),ensureArrayLikeIs = _require.ensureArrayLikeIs,SerializedType = _require.SerializedType;var _require2 =
-__webpack_require__(26),Field = _require2.Field;var _require3 =
+__webpack_require__(24),Field = _require2.Field;var _require3 =
 __webpack_require__(77),STObject = _require3.STObject;var
 ArrayEndMarker = Field.ArrayEndMarker;
 
@@ -40690,8 +40680,8 @@ module.exports = {
 "use strict";
 var assert = __webpack_require__(2);
 var makeClass = __webpack_require__(4);var _require =
-__webpack_require__(26),Field = _require.Field;var _require2 =
-__webpack_require__(8),slice = _require2.slice,parseBytes = _require2.parseBytes;
+__webpack_require__(24),Field = _require.Field;var _require2 =
+__webpack_require__(7),slice = _require2.slice,parseBytes = _require2.parseBytes;
 
 var BinaryParser = makeClass({
   BinaryParser: function BinaryParser(buf) {
@@ -40948,7 +40938,7 @@ exports = module.exports = __webpack_require__(80);
 exports.Stream = exports;
 exports.Readable = exports;
 exports.Writable = __webpack_require__(84);
-exports.Duplex = __webpack_require__(29);
+exports.Duplex = __webpack_require__(27);
 exports.Transform = __webpack_require__(86);
 exports.PassThrough = __webpack_require__(298);
 exports.finished = __webpack_require__(57);
@@ -41471,7 +41461,7 @@ function once(callback) {
   };
 }
 
-var _require$codes = __webpack_require__(28).codes,
+var _require$codes = __webpack_require__(26).codes,
     ERR_MISSING_ARGS = _require$codes.ERR_MISSING_ARGS,
     ERR_STREAM_DESTROYED = _require$codes.ERR_STREAM_DESTROYED;
 
@@ -41758,7 +41748,7 @@ exports.sha512 = __webpack_require__(88)
  */
 
 var inherits = __webpack_require__(3)
-var Hash = __webpack_require__(30)
+var Hash = __webpack_require__(28)
 var Buffer = __webpack_require__(13).Buffer
 
 var K = [
@@ -41859,7 +41849,7 @@ module.exports = Sha
  */
 
 var inherits = __webpack_require__(3)
-var Hash = __webpack_require__(30)
+var Hash = __webpack_require__(28)
 var Buffer = __webpack_require__(13).Buffer
 
 var K = [
@@ -41964,7 +41954,7 @@ module.exports = Sha1
 
 var inherits = __webpack_require__(3)
 var Sha256 = __webpack_require__(87)
-var Hash = __webpack_require__(30)
+var Hash = __webpack_require__(28)
 var Buffer = __webpack_require__(13).Buffer
 
 var W = new Array(64)
@@ -42015,7 +42005,7 @@ module.exports = Sha224
 
 var inherits = __webpack_require__(3)
 var SHA512 = __webpack_require__(88)
-var Hash = __webpack_require__(30)
+var Hash = __webpack_require__(28)
 var Buffer = __webpack_require__(13).Buffer
 
 var W = new Array(160)
@@ -42078,7 +42068,7 @@ module.exports = Sha384
 
 var Buffer = __webpack_require__(13).Buffer
 var Transform = __webpack_require__(307).Transform
-var StringDecoder = __webpack_require__(36).StringDecoder
+var StringDecoder = __webpack_require__(34).StringDecoder
 var inherits = __webpack_require__(3)
 
 function CipherBase (hashMode) {
@@ -42707,7 +42697,7 @@ module.exports = PassThrough;
 var Transform = __webpack_require__(92);
 
 /*<replacement>*/
-var util = Object.create(__webpack_require__(37));
+var util = Object.create(__webpack_require__(35));
 util.inherits = __webpack_require__(3);
 /*</replacement>*/
 
@@ -42757,12 +42747,12 @@ module.exports = __webpack_require__(58).PassThrough
 
 "use strict";
 function _toConsumableArray(arr) {if (Array.isArray(arr)) {for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) {arr2[i] = arr[i];}return arr2;} else {return Array.from(arr);}}var _ = __webpack_require__(0);
-var BN = __webpack_require__(27);
+var BN = __webpack_require__(25);
 var assert = __webpack_require__(2);
 var types = __webpack_require__(21);var
 STObject = types.STObject,Hash256 = types.Hash256;var _require =
 __webpack_require__(93),ShaMap = _require.ShaMap;var _require2 =
-__webpack_require__(35),HashPrefix = _require2.HashPrefix;var _require3 =
+__webpack_require__(33),HashPrefix = _require2.HashPrefix;var _require3 =
 __webpack_require__(42),Sha512Half = _require3.Sha512Half;var _require4 =
 __webpack_require__(56),BinarySerializer = _require4.BinarySerializer,serializeObject = _require4.serializeObject;
 
@@ -42834,9 +42824,9 @@ module.exports = {
 
 "use strict";
 var Decimal = __webpack_require__(74);var _require =
-__webpack_require__(8),bytesToHex = _require.bytesToHex,slice = _require.slice,parseBytes = _require.parseBytes;var _require2 =
+__webpack_require__(7),bytesToHex = _require.bytesToHex,slice = _require.slice,parseBytes = _require.parseBytes;var _require2 =
 __webpack_require__(21),UInt64 = _require2.UInt64;
-var BN = __webpack_require__(27);
+var BN = __webpack_require__(25);
 
 module.exports = {
   encode: function encode(arg) {
@@ -43026,7 +43016,7 @@ exports.default = getTrustlines;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-var utils_1 = __webpack_require__(10);
+var utils_1 = __webpack_require__(9);
 var common_1 = __webpack_require__(1);
 // function hexToStringWide(h) {//16进制转中英文
 //     let a = [];
@@ -43390,7 +43380,7 @@ exports.default = getOrders;
 Object.defineProperty(exports, "__esModule", { value: true });
 var bignumber_js_1 = __webpack_require__(6);
 var amount_1 = __webpack_require__(16);
-var utils_1 = __webpack_require__(10);
+var utils_1 = __webpack_require__(9);
 var common_1 = __webpack_require__(1);
 var flags_1 = __webpack_require__(97);
 function computeQuality(takerGets, takerPays) {
@@ -43510,7 +43500,7 @@ exports.default = getOrderbook;
 
 Object.defineProperty(exports, "__esModule", { value: true });
 var _ = __webpack_require__(0);
-var utils_1 = __webpack_require__(10);
+var utils_1 = __webpack_require__(9);
 var common_1 = __webpack_require__(1);
 var flags_1 = __webpack_require__(97);
 var amount_1 = __webpack_require__(16);
@@ -43779,7 +43769,7 @@ exports.default = getPaymentChannel;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-var utils_1 = __webpack_require__(10);
+var utils_1 = __webpack_require__(9);
 var common_1 = __webpack_require__(1);
 function parsePaymentChannel(data) {
     return common_1.removeUndefined({
@@ -43805,122 +43795,10 @@ exports.default = parsePaymentChannel;
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
-/* WEBPACK VAR INJECTION */(function(Buffer) {
-Object.defineProperty(exports, "__esModule", { value: true });
-var _ = __webpack_require__(0);
-var bignumber_js_1 = __webpack_require__(6);
-var utils = __webpack_require__(7);
-var validate = utils.common.validate;
-var issuesetFlags = utils.common.txFlags.IssueSet;
-var ValidationError = utils.common.errors.ValidationError;
-var AccountFlagIndices = utils.common.constants.AccountFlagIndices;
-var AccountFields = utils.common.constants.AccountFields;
-// Emptry string passed to setting will clear it
-var CLEAR_SETTING = null;
-function setTransactionFlags(txJSON, values) {
-    var keys = Object.keys(values);
-    //assert(keys.length === 1, 'ERROR: can only set one setting per transaction')
-    var flagName = keys[0];
-    var value = values[flagName];
-    var index = AccountFlagIndices[flagName];
-    if (index !== undefined) {
-        if (value) {
-            txJSON.SetFlag = index;
-        }
-        else {
-            txJSON.ClearFlag = index;
-        }
-    }
-}
-function setTransactionFields(txJSON, input) {
-    var fieldSchema = AccountFields;
-    for (var fieldName in fieldSchema) {
-        var field = fieldSchema[fieldName];
-        var value = input[field.name];
-        if (value === undefined) {
-            continue;
-        }
-        // The value required to clear an account root field varies
-        if (value === CLEAR_SETTING && field.hasOwnProperty('defaults')) {
-            value = field.defaults;
-        }
-        if (field.encoding === 'hex' && !field.length) {
-            // This is currently only used for Domain field
-            value = new Buffer(value, 'ascii').toString('hex').toUpperCase();
-        }
-        txJSON[fieldName] = value;
-    }
-}
-/**
- *  Note: A fee of 1% requires 101% of the destination to be sent for the
- *        destination to receive 100%.
- *  The transfer rate is specified as the input amount as fraction of 1.
- *  To specify the default rate of 0%, a 100% input amount, specify 1.
- *  To specify a rate of 1%, a 101% input amount, specify 1.01
- *
- *  @param {Number|String} transferRate
- *
- *  @returns {Number|String} numbers will be converted while strings
- *                           are returned
- */
-function convertTransferRate(transferRate) {
-    return (new bignumber_js_1.default(transferRate)).shift(9).toNumber();
-}
-function createIssueSetTransactionWithoutMemos(account, issueset) {
-    if (issueset.total == undefined) {
-        throw new ValidationError('total amount should be present');
-    }
-    if (issueset.total.issuer !== account) {
-        throw new ValidationError('only allow to issue asset for self');
-    }
-    var txJSON = {
-        TransactionType: 'IssueSet',
-        Account: account,
-        Total: issueset.total,
-        Flags: 0
-    };
-    setTransactionFlags(txJSON, _.omit(issueset, 'memos'));
-    setTransactionFields(txJSON, issueset);
-    if (txJSON.TransferRate && issueset.nonFungible) {
-        throw new ValidationError('Non fungible asset not allow to set transfer rate');
-    }
-    if (txJSON.TransferRate !== undefined) {
-        txJSON.TransferRate = convertTransferRate(txJSON.TransferRate);
-    }
-    if (issueset.additional) {
-        txJSON.Flags |= issuesetFlags.Additional;
-    }
-    if (issueset.nonFungible) {
-        txJSON.Flags |= issuesetFlags.NonFungible;
-    }
-    return txJSON;
-}
-function createIssueSetTransaction(account, issueset) {
-    var txJSON = createIssueSetTransactionWithoutMemos(account, issueset);
-    if (issueset.memos !== undefined) {
-        txJSON.Memos = _.map(issueset.memos, utils.convertMemo);
-    }
-    return txJSON;
-}
-function prepareIssueSet(address, issueset, instructions) {
-    if (instructions === void 0) { instructions = {}; }
-    validate.prepareIssueSet({ address: address, issueset: issueset, instructions: instructions });
-    var txJSON = createIssueSetTransaction(address, issueset);
-    return utils.prepareTransaction(txJSON, this, instructions);
-}
-exports.default = prepareIssueSet;
-
-/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(5).Buffer))
-
-/***/ }),
-/* 340 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
 var _ = __webpack_require__(0);
-var utils = __webpack_require__(7);
+var utils = __webpack_require__(10);
 // const validate = utils.common.validate
 var toCalledAmount = utils.common.toCalledAmount;
 var paymentFlags = utils.common.txFlags.Payment;
@@ -43938,8 +43816,8 @@ function applyAnyCounterpartyEncoding(payment) {
     _.forEach([payment.source, payment.destination], function (adjustment) {
         _.forEach(['amount', 'minAmount', 'maxAmount'], function (key) {
             if (isIOUWithoutCounterparty(adjustment[key])) {
-                //adjustment[key].counterparty = adjustment.issuer
-                adjustment[key].counterparty = adjustment.address;
+                adjustment[key].counterparty = adjustment.issuer;
+                // adjustment[key].counterparty = adjustment.address
             }
         });
     });
@@ -44019,7 +43897,7 @@ exports.default = preparePayment;
 
 
 /***/ }),
-/* 341 */
+/* 340 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -44027,7 +43905,7 @@ exports.default = preparePayment;
 Object.defineProperty(exports, "__esModule", { value: true });
 var _ = __webpack_require__(0);
 var bignumber_js_1 = __webpack_require__(6);
-var utils = __webpack_require__(7);
+var utils = __webpack_require__(10);
 var validate = utils.common.validate;
 var trustlineFlags = utils.common.txFlags.TrustSet;
 function convertQuality(quality) {
@@ -44077,14 +43955,14 @@ exports.default = prepareTrustline;
 
 
 /***/ }),
-/* 342 */
+/* 341 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
 var _ = __webpack_require__(0);
-var utils = __webpack_require__(7);
+var utils = __webpack_require__(10);
 var offerFlags = utils.common.txFlags.OfferCreate;
 var common_1 = __webpack_require__(1);
 function createOrderTransaction(account, order) {
@@ -44132,14 +44010,14 @@ exports.default = prepareOrder;
 
 
 /***/ }),
-/* 343 */
+/* 342 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
 var _ = __webpack_require__(0);
-var utils = __webpack_require__(7);
+var utils = __webpack_require__(10);
 var validate = utils.common.validate;
 function createOrderCancellationTransaction(account, orderCancellation) {
     var txJSON = {
@@ -44162,14 +44040,14 @@ exports.default = prepareOrderCancellation;
 
 
 /***/ }),
-/* 344 */
+/* 343 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
 var _ = __webpack_require__(0);
-var utils = __webpack_require__(7);
+var utils = __webpack_require__(10);
 var common_1 = __webpack_require__(1);
 var ValidationError = utils.common.errors.ValidationError;
 function createEscrowCreationTransaction(account, payment) {
@@ -44214,14 +44092,14 @@ exports.default = prepareEscrowCreation;
 
 
 /***/ }),
-/* 345 */
+/* 344 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
 var _ = __webpack_require__(0);
-var utils = __webpack_require__(7);
+var utils = __webpack_require__(10);
 var validate = utils.common.validate;
 var ValidationError = utils.common.errors.ValidationError;
 function createEscrowExecutionTransaction(account, payment) {
@@ -44256,14 +44134,14 @@ exports.default = prepareEscrowExecution;
 
 
 /***/ }),
-/* 346 */
+/* 345 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
 var _ = __webpack_require__(0);
-var utils = __webpack_require__(7);
+var utils = __webpack_require__(10);
 var validate = utils.common.validate;
 function createEscrowCancellationTransaction(account, payment) {
     var txJSON = {
@@ -44287,130 +44165,7 @@ exports.default = prepareEscrowCancellation;
 
 
 /***/ }),
-/* 347 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-var utils = __webpack_require__(7);
-var common_1 = __webpack_require__(1);
-function createPaymentChannelCreateTransaction(account, paymentChannel) {
-    var txJSON = {
-        Account: account,
-        TransactionType: 'PaymentChannelCreate',
-        Amount: common_1.callToDrops(paymentChannel.amount),
-        Destination: paymentChannel.destination,
-        SettleDelay: paymentChannel.settleDelay,
-        PublicKey: paymentChannel.publicKey.toUpperCase()
-    };
-    if (paymentChannel.cancelAfter !== undefined) {
-        txJSON.CancelAfter = common_1.iso8601ToCallTime(paymentChannel.cancelAfter);
-    }
-    if (paymentChannel.sourceTag !== undefined) {
-        txJSON.SourceTag = paymentChannel.sourceTag;
-    }
-    if (paymentChannel.destinationTag !== undefined) {
-        txJSON.DestinationTag = paymentChannel.destinationTag;
-    }
-    return txJSON;
-}
-function preparePaymentChannelCreate(address, paymentChannelCreate, instructions) {
-    if (instructions === void 0) { instructions = {}; }
-    common_1.validate.preparePaymentChannelCreate({ address: address, paymentChannelCreate: paymentChannelCreate, instructions: instructions });
-    var txJSON = createPaymentChannelCreateTransaction(address, paymentChannelCreate);
-    return utils.prepareTransaction(txJSON, this, instructions);
-}
-exports.default = preparePaymentChannelCreate;
-
-
-/***/ }),
-/* 348 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-var utils = __webpack_require__(7);
-var common_1 = __webpack_require__(1);
-function createPaymentChannelFundTransaction(account, fund) {
-    var txJSON = {
-        Account: account,
-        TransactionType: 'PaymentChannelFund',
-        Channel: fund.channel,
-        Amount: common_1.callToDrops(fund.amount)
-    };
-    if (fund.expiration !== undefined) {
-        txJSON.Expiration = common_1.iso8601ToCallTime(fund.expiration);
-    }
-    return txJSON;
-}
-function preparePaymentChannelFund(address, paymentChannelFund, instructions) {
-    if (instructions === void 0) { instructions = {}; }
-    common_1.validate.preparePaymentChannelFund({ address: address, paymentChannelFund: paymentChannelFund, instructions: instructions });
-    var txJSON = createPaymentChannelFundTransaction(address, paymentChannelFund);
-    return utils.prepareTransaction(txJSON, this, instructions);
-}
-exports.default = preparePaymentChannelFund;
-
-
-/***/ }),
-/* 349 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-var utils = __webpack_require__(7);
-var ValidationError = utils.common.errors.ValidationError;
-var claimFlags = utils.common.txFlags.PaymentChannelClaim;
-var common_1 = __webpack_require__(1);
-function createPaymentChannelClaimTransaction(account, claim) {
-    var txJSON = {
-        Account: account,
-        TransactionType: 'PaymentChannelClaim',
-        Channel: claim.channel,
-        Flags: 0
-    };
-    if (claim.balance !== undefined) {
-        txJSON.Balance = common_1.callToDrops(claim.balance);
-    }
-    if (claim.amount !== undefined) {
-        txJSON.Amount = common_1.callToDrops(claim.amount);
-    }
-    if (Boolean(claim.signature) !== Boolean(claim.publicKey)) {
-        throw new ValidationError('"signature" and "publicKey" fields on'
-            + ' PaymentChannelClaim must only be specified together.');
-    }
-    if (claim.signature !== undefined) {
-        txJSON.Signature = claim.signature;
-    }
-    if (claim.publicKey !== undefined) {
-        txJSON.PublicKey = claim.publicKey;
-    }
-    if (claim.renew === true && claim.close === true) {
-        throw new ValidationError('"renew" and "close" flags on PaymentChannelClaim'
-            + ' are mutually exclusive');
-    }
-    if (claim.renew === true) {
-        txJSON.Flags |= claimFlags.Renew;
-    }
-    if (claim.close === true) {
-        txJSON.Flags |= claimFlags.Close;
-    }
-    return txJSON;
-}
-function preparePaymentChannelClaim(address, paymentChannelClaim, instructions) {
-    if (instructions === void 0) { instructions = {}; }
-    common_1.validate.preparePaymentChannelClaim({ address: address, paymentChannelClaim: paymentChannelClaim, instructions: instructions });
-    var txJSON = createPaymentChannelClaimTransaction(address, paymentChannelClaim);
-    return utils.prepareTransaction(txJSON, this, instructions);
-}
-exports.default = preparePaymentChannelClaim;
-
-
-/***/ }),
-/* 350 */
+/* 346 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -44419,7 +44174,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 var _ = __webpack_require__(0);
 var assert = __webpack_require__(2);
 var bignumber_js_1 = __webpack_require__(6);
-var utils = __webpack_require__(7);
+var utils = __webpack_require__(10);
 var validate = utils.common.validate;
 var AccountFlagIndices = utils.common.constants.AccountFlagIndices;
 var AccountFields = utils.common.constants.AccountFields;
@@ -44537,15 +44292,127 @@ exports.default = prepareSettings;
 /* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(5).Buffer))
 
 /***/ }),
-/* 351 */
+/* 347 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+/* WEBPACK VAR INJECTION */(function(Buffer) {
+Object.defineProperty(exports, "__esModule", { value: true });
+var _ = __webpack_require__(0);
+var bignumber_js_1 = __webpack_require__(6);
+var utils = __webpack_require__(10);
+var validate = utils.common.validate;
+var issuesetFlags = utils.common.txFlags.IssueSet;
+var ValidationError = utils.common.errors.ValidationError;
+var AccountFlagIndices = utils.common.constants.AccountFlagIndices;
+var AccountFields = utils.common.constants.AccountFields;
+// Emptry string passed to setting will clear it
+var CLEAR_SETTING = null;
+function setTransactionFlags(txJSON, values) {
+    var keys = Object.keys(values);
+    //assert(keys.length === 1, 'ERROR: can only set one setting per transaction')
+    var flagName = keys[0];
+    var value = values[flagName];
+    var index = AccountFlagIndices[flagName];
+    if (index !== undefined) {
+        if (value) {
+            txJSON.SetFlag = index;
+        }
+        else {
+            txJSON.ClearFlag = index;
+        }
+    }
+}
+function setTransactionFields(txJSON, input) {
+    var fieldSchema = AccountFields;
+    for (var fieldName in fieldSchema) {
+        var field = fieldSchema[fieldName];
+        var value = input[field.name];
+        if (value === undefined) {
+            continue;
+        }
+        // The value required to clear an account root field varies
+        if (value === CLEAR_SETTING && field.hasOwnProperty('defaults')) {
+            value = field.defaults;
+        }
+        if (field.encoding === 'hex' && !field.length) {
+            // This is currently only used for Domain field
+            value = new Buffer(value, 'ascii').toString('hex').toUpperCase();
+        }
+        txJSON[fieldName] = value;
+    }
+}
+/**
+ *  Note: A fee of 1% requires 101% of the destination to be sent for the
+ *        destination to receive 100%.
+ *  The transfer rate is specified as the input amount as fraction of 1.
+ *  To specify the default rate of 0%, a 100% input amount, specify 1.
+ *  To specify a rate of 1%, a 101% input amount, specify 1.01
+ *
+ *  @param {Number|String} transferRate
+ *
+ *  @returns {Number|String} numbers will be converted while strings
+ *                           are returned
+ */
+function convertTransferRate(transferRate) {
+    return (new bignumber_js_1.default(transferRate)).shift(9).toNumber();
+}
+function createIssueSetTransactionWithoutMemos(account, issueset) {
+    if (issueset.total == undefined) {
+        throw new ValidationError('total amount should be present');
+    }
+    if (issueset.total.issuer !== account) {
+        throw new ValidationError('only allow to issue asset for self');
+    }
+    var txJSON = {
+        TransactionType: 'IssueSet',
+        Account: account,
+        Total: issueset.total,
+        Flags: 0
+    };
+    setTransactionFlags(txJSON, _.omit(issueset, 'memos'));
+    setTransactionFields(txJSON, issueset);
+    if (txJSON.TransferRate && issueset.nonFungible) {
+        throw new ValidationError('Non fungible asset not allow to set transfer rate');
+    }
+    if (txJSON.TransferRate !== undefined) {
+        txJSON.TransferRate = convertTransferRate(txJSON.TransferRate);
+    }
+    if (issueset.additional) {
+        txJSON.Flags |= issuesetFlags.Additional;
+    }
+    if (issueset.nonFungible) {
+        txJSON.Flags |= issuesetFlags.NonFungible;
+    }
+    return txJSON;
+}
+function createIssueSetTransaction(account, issueset) {
+    var txJSON = createIssueSetTransactionWithoutMemos(account, issueset);
+    if (issueset.memos !== undefined) {
+        txJSON.Memos = _.map(issueset.memos, utils.convertMemo);
+    }
+    return txJSON;
+}
+function prepareIssueSet(address, issueset, instructions) {
+    if (instructions === void 0) { instructions = {}; }
+    validate.prepareIssueSet({ address: address, issueset: issueset, instructions: instructions });
+    var txJSON = createIssueSetTransaction(address, issueset);
+    return utils.prepareTransaction(txJSON, this, instructions);
+}
+exports.default = prepareIssueSet;
+
+/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(5).Buffer))
+
+/***/ }),
+/* 348 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-var utils = __webpack_require__(7);
-var keypairs = __webpack_require__(24);
-var binary = __webpack_require__(25);
+var utils = __webpack_require__(10);
+var keypairs = __webpack_require__(37);
+var binary = __webpack_require__(40);
 var call_hashes_1 = __webpack_require__(44);
 var validate = utils.common.validate;
 function computeSignature(tx, privateKey, signAs) {
@@ -44585,17 +44452,17 @@ exports.default = sign;
 
 
 /***/ }),
-/* 352 */
+/* 349 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 /* WEBPACK VAR INJECTION */(function(Buffer) {
 Object.defineProperty(exports, "__esModule", { value: true });
 var _ = __webpack_require__(0);
-var binary = __webpack_require__(25);
-var utils = __webpack_require__(7);
+var binary = __webpack_require__(40);
+var utils = __webpack_require__(10);
 var bignumber_js_1 = __webpack_require__(6);
-var call_address_codec_1 = __webpack_require__(32);
+var call_address_codec_1 = __webpack_require__(30);
 var common_1 = __webpack_require__(1);
 var call_hashes_1 = __webpack_require__(44);
 function addressToBigNumber(address) {
@@ -44629,14 +44496,14 @@ exports.default = combine;
 /* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(5).Buffer))
 
 /***/ }),
-/* 353 */
+/* 350 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
 var _ = __webpack_require__(0);
-var utils = __webpack_require__(7);
+var utils = __webpack_require__(10);
 function isImmediateRejection(engineResult) {
     // note: "tel" errors mean the local server refused to process the
     // transaction *at that time*, but it could potentially buffer the
@@ -44677,13 +44544,13 @@ exports.default = submit;
 
 
 /***/ }),
-/* 354 */
+/* 351 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-var keypairs = __webpack_require__(24);
+var keypairs = __webpack_require__(37);
 var common = __webpack_require__(1);
 var errors = common.errors, validate = common.validate;
 function generateAddress(options) {
@@ -44705,13 +44572,13 @@ exports.generateAddressAPI = generateAddressAPI;
 
 
 /***/ }),
-/* 355 */
+/* 352 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-var keypairs = __webpack_require__(24);
+var keypairs = __webpack_require__(37);
 function fromSecret(secret) {
     try {
         var keypair = keypairs.deriveKeypair(secret);
@@ -44727,7 +44594,7 @@ exports.fromSecret = fromSecret;
 
 
 /***/ }),
-/* 356 */
+/* 353 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -44800,57 +44667,14 @@ exports.default = computeLedgerHash;
 
 
 /***/ }),
-/* 357 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-var common = __webpack_require__(1);
-var keypairs = __webpack_require__(24);
-var binary = __webpack_require__(25);
-var validate = common.validate, callToDrops = common.callToDrops;
-function signPaymentChannelClaim(channel, amount, privateKey) {
-    validate.signPaymentChannelClaim({ channel: channel, amount: amount, privateKey: privateKey });
-    var signingData = binary.encodeForSigningClaim({
-        channel: channel,
-        amount: callToDrops(amount)
-    });
-    return keypairs.sign(signingData, privateKey);
-}
-exports.default = signPaymentChannelClaim;
-
-
-/***/ }),
-/* 358 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-var keypairs = __webpack_require__(24);
-var binary = __webpack_require__(25);
-var common_1 = __webpack_require__(1);
-function verifyPaymentChannelClaim(channel, amount, signature, publicKey) {
-    common_1.validate.verifyPaymentChannelClaim({ channel: channel, amount: amount, signature: signature, publicKey: publicKey });
-    var signingData = binary.encodeForSigningClaim({
-        channel: channel,
-        amount: common_1.callToDrops(amount)
-    });
-    return keypairs.verify(signingData, signature, publicKey);
-}
-exports.default = verifyPaymentChannelClaim;
-
-
-/***/ }),
-/* 359 */
+/* 354 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
 var common_1 = __webpack_require__(1);
-var ledger_1 = __webpack_require__(360);
+var ledger_1 = __webpack_require__(355);
 function getLedger(options) {
     if (options === void 0) { options = {}; }
     common_1.validate.getLedger({ options: options });
@@ -44870,7 +44694,7 @@ exports.default = getLedger;
 
 
 /***/ }),
-/* 360 */
+/* 355 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -44930,7 +44754,7 @@ exports.default = parseLedger;
 
 
 /***/ }),
-/* 361 */
+/* 356 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";

@@ -16,7 +16,7 @@ type Payment = {
   memos?: Array<Memo>,
   // A 256-bit hash that can be used to identify a particular payment
   invoiceID?: string, // for non fungible
-  invoice: string,
+  invoice?: string,
   allowPartialPayment?: boolean,
   noDirectCall?: boolean,
   limitQuality?: boolean
@@ -39,8 +39,8 @@ function applyAnyCounterpartyEncoding(payment: Payment): void {
   _.forEach([payment.source, payment.destination], adjustment => {
     _.forEach(['amount', 'minAmount', 'maxAmount'], key => {
       if (isIOUWithoutCounterparty(adjustment[key])) {
-        //adjustment[key].counterparty = adjustment.issuer
-        adjustment[key].counterparty = adjustment.address
+        adjustment[key].counterparty = adjustment.issuer
+        // adjustment[key].counterparty = adjustment.address
       }
     })
   })

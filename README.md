@@ -12,6 +12,10 @@ A JavaScript API for interacting with the CALL Ledger
 
 Install `call-lib`:
 ```
+node v10.21.0 node v6.14.4
+```
+
+```
 $ npm install call-lib
 ```
 

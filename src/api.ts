@@ -22,7 +22,6 @@ import getAccountByName from './ledger/accountbyname'
 import getAccountIssues from './ledger/accountissues'
 import getAccountInvoices from './ledger/accountinvoices'
 import getPaymentChannel from './ledger/payment-channel'
-import prepareIssueSet from './transaction/issue-set'
 import preparePayment from './transaction/payment'
 import prepareTrustline from './transaction/trustline'
 import prepareOrder from './transaction/order'
@@ -30,9 +29,6 @@ import prepareOrderCancellation from './transaction/ordercancellation'
 import prepareEscrowCreation from './transaction/escrow-creation'
 import prepareEscrowExecution from './transaction/escrow-execution'
 import prepareEscrowCancellation from './transaction/escrow-cancellation'
-import preparePaymentChannelCreate from './transaction/payment-channel-create'
-import preparePaymentChannelFund from './transaction/payment-channel-fund'
-import preparePaymentChannelClaim from './transaction/payment-channel-claim'
 import prepareSettings from './transaction/settings'
 import prepareIssueSet from './transaction/issue-set'
 import sign from './transaction/sign'
@@ -41,8 +37,6 @@ import submit from './transaction/submit'
 import {generateAddressAPI} from './offline/generate-address'
 import {fromSecret} from './offline/address-fromSecret'
 import computeLedgerHash from './offline/ledgerhash'
-import signPaymentChannelClaim from './offline/sign-payment-channel-claim'
-import verifyPaymentChannelClaim from './offline/verify-payment-channel-claim'
 import getLedger from './ledger/ledger'
 
 
@@ -146,9 +140,6 @@ class CallAPI extends EventEmitter {
   prepareEscrowCreation = prepareEscrowCreation
   prepareEscrowExecution = prepareEscrowExecution
   prepareEscrowCancellation = prepareEscrowCancellation
-  preparePaymentChannelCreate = preparePaymentChannelCreate
-  preparePaymentChannelFund = preparePaymentChannelFund
-  preparePaymentChannelClaim = preparePaymentChannelClaim
   prepareSettings = prepareSettings
   sign = sign
   combine = combine
@@ -157,8 +148,6 @@ class CallAPI extends EventEmitter {
   generateAddress = generateAddressAPI
   fromSecret = fromSecret
   computeLedgerHash = computeLedgerHash
-  signPaymentChannelClaim = signPaymentChannelClaim
-  verifyPaymentChannelClaim = verifyPaymentChannelClaim
   errors = errors
 }
 
