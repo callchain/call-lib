@@ -83,41 +83,36 @@ function getAccountTx(connection, address, options, marker, limit) {
         return formatPartialResponse(address, options, response);
     });
 }
-// function checkForLedgerGaps(connection: Connection,
-//   options: TransactionsOptions, transactions: GetTransactionsResponse
-// ) {
-//   let {minLedgerVersion, maxLedgerVersion} = options
-//   // if we reached the limit on number of transactions, then we can shrink
-//   // the required ledger range to only guarantee that there are no gaps in
-//   // the range of ledgers spanned by those transactions
-//   if (options.limit && transactions.length === options.limit) {
-//     if (options.earliestFirst) {
-//       maxLedgerVersion = _.last(transactions)!.outcome.ledgerVersion
-//     } else {
-//       minLedgerVersion = _.last(transactions)!.outcome.ledgerVersion
-//     }
-//   }
-//   return utils.hasCompleteLedgerRange(connection, minLedgerVersion,
-//     maxLedgerVersion).then(hasCompleteLedgerRange => {
-//     if (!hasCompleteLedgerRange) {
-//       throw new errors.MissingLedgerHistoryError()
-//     }
-//   })
-// }
-// function formatResponse(connection: Connection, options: TransactionsOptions,
-//   transactions: GetTransactionsResponse
-// ) {
-//   const compare = options.earliestFirst ? utils.compareTransactions :
-//     _.rearg(utils.compareTransactions, 1, 0)
-//   const sortedTransactions = transactions.sort(compare)
-//   return checkForLedgerGaps(connection, options, sortedTransactions).then(
-//     () => sortedTransactions)
-// }
+function checkForLedgerGaps(connection, options, transactions) {
+    var minLedgerVersion = options.minLedgerVersion, maxLedgerVersion = options.maxLedgerVersion;
+    // if we reached the limit on number of transactions, then we can shrink
+    // the required ledger range to only guarantee that there are no gaps in
+    // the range of ledgers spanned by those transactions
+    if (options.limit && transactions.length === options.limit) {
+        if (options.earliestFirst) {
+            maxLedgerVersion = _.last(transactions).outcome.ledgerVersion;
+        }
+        else {
+            minLedgerVersion = _.last(transactions).outcome.ledgerVersion;
+        }
+    }
+    return utils.hasCompleteLedgerRange(connection, minLedgerVersion, maxLedgerVersion).then(function (hasCompleteLedgerRange) {
+        if (!hasCompleteLedgerRange) {
+            throw new common_1.errors.MissingLedgerHistoryError();
+        }
+    });
+}
+function formatResponse(connection, options, transactions) {
+    var compare = options.earliestFirst ? utils.compareTransactions :
+        _.rearg(utils.compareTransactions, 1, 0);
+    var sortedTransactions = transactions.sort(compare);
+    return checkForLedgerGaps(connection, options, sortedTransactions).then(function () { return sortedTransactions; });
+}
 function getTransactionsInternal(connection, address, options) {
     var getter = _.partial(getAccountTx, connection, address, options);
-    //const format = _.partial(formatResponse, connection, options)
-    // return utils.getRecursive(getter, options.limit).then(format)
-    return utils.getRecursive(getter, options.limit, options.counterparty);
+    var format = _.partial(formatResponse, connection, options);
+    // return utils.getRecursive(getter, options.limit).then(format);
+    return utils.getRecursive(getter, options.limit, options.marker);
 }
 function getTransactions(address, options) {
     var _this = this;

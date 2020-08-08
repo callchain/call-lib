@@ -1,5 +1,4 @@
 import * as _ from 'lodash'
-import * as assert from 'assert'
 import BigNumber from 'bignumber.js'
 import * as utils from './utils'
 const validate = utils.common.validate

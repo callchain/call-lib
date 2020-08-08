@@ -17,18 +17,14 @@ import getPaths from './ledger/pathfind'
 import getOrders from './ledger/orders'
 import getOrderbook from './ledger/orderbook'
 import getSettings from './ledger/settings'
-import getAccountInfo from './ledger/accountinfo'
-import getAccountByName from './ledger/accountbyname'
-import getAccountIssues from './ledger/accountissues'
-import getAccountInvoices from './ledger/accountinvoices'
-import getPaymentChannel from './ledger/payment-channel'
+import getAccountInfo from './ledger/account-info'
+import getAccountByName from './ledger/account-by-name'
+import getAccountIssues from './ledger/account-issues'
+import getAccountInvoices from './ledger/account-invoices'
 import preparePayment from './transaction/payment'
 import prepareTrustline from './transaction/trustline'
 import prepareOrder from './transaction/order'
 import prepareOrderCancellation from './transaction/ordercancellation'
-import prepareEscrowCreation from './transaction/escrow-creation'
-import prepareEscrowExecution from './transaction/escrow-execution'
-import prepareEscrowCancellation from './transaction/escrow-cancellation'
 import prepareSettings from './transaction/settings'
 import prepareIssueSet from './transaction/issue-set'
 import sign from './transaction/sign'
@@ -38,7 +34,6 @@ import {generateAddressAPI} from './offline/generate-address'
 import {fromSecret} from './offline/address-fromSecret'
 import computeLedgerHash from './offline/ledgerhash'
 import getLedger from './ledger/ledger'
-
 
 import RangeSet from './common/rangeset'
 import * as ledgerUtils from './ledger/utils'
@@ -129,7 +124,6 @@ class CallAPI extends EventEmitter {
   getAccountByName = getAccountByName
   getAccountIssues = getAccountIssues
   getAccountInvoices = getAccountInvoices
-  getPaymentChannel = getPaymentChannel
   getLedger = getLedger
 
   prepareIssueSet = prepareIssueSet
@@ -137,9 +131,6 @@ class CallAPI extends EventEmitter {
   prepareTrustline = prepareTrustline
   prepareOrder = prepareOrder
   prepareOrderCancellation = prepareOrderCancellation
-  prepareEscrowCreation = prepareEscrowCreation
-  prepareEscrowExecution = prepareEscrowExecution
-  prepareEscrowCancellation = prepareEscrowCancellation
   prepareSettings = prepareSettings
   sign = sign
   combine = combine
