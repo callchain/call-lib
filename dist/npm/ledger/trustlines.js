@@ -4,18 +4,6 @@ var _ = require("lodash");
 var utils = require("./utils");
 var common_1 = require("../common");
 var account_trustline_1 = require("./parse/account-trustline");
-// function hexToStringWide(h) {//16进制转中英文
-//     let a = [];
-//     let i = 0;
-//     if (h.length % 4) {
-//         a.push(String.fromCharCode(parseInt(h.substring(0, 4), 16)));
-//         i = 4;
-//     }
-//     for (; i<h.length; i+=4) {
-//         a.push(String.fromCharCode(parseInt(h.substring(i, i+4), 16)));
-//     }
-//     return a.join('');
-// }
 function currencyFilter(currency, trustline) {
     return currency === null || trustline.specification.currency === currency;
 }

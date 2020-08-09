@@ -14,7 +14,8 @@ function parseIssueSet(tx: any): Object {
     issuer: tx.Total.issuer,
     total: tx.Total.value,
     additional: parseFlag(tx.Flags, flags.Additional),
-    invoice: parseFlag(tx.Flags, flags.NonFungible)
+    invoice: parseFlag(tx.Flags, flags.NonFungible),
+    transferRate: tx.TransferRate || undefined
   })
 }
 
