@@ -4,7 +4,7 @@ var _ = require("lodash");
 var assert = require("assert");
 var bignumber_js_1 = require("bignumber.js");
 var utils = require("./utils");
-var validate = utils.common.validate;
+// const validate = utils.common.validate
 var AccountFlagIndices = utils.common.constants.AccountFlagIndices;
 var AccountFields = utils.common.constants.AccountFields;
 // Emptry string passed to setting will clear it
@@ -85,6 +85,7 @@ function createSettingsTransactionWithoutMemos(account, settings) {
             SignerEntries: _.map(settings.signers.weights, formatSignerEntry)
         };
     }
+    // to remove, move to issueset transaction
     if (settings.total) {
         return {
             TransactionType: 'IssueSet',
@@ -111,8 +112,9 @@ function createSettingsTransaction(account, settings) {
     return txJSON;
 }
 function prepareSettings(address, settings, instructions) {
-    if (instructions === void 0) { instructions = {}; }
+    // TODO use it
     // validate.prepareSettings({address, settings, instructions})
+    if (instructions === void 0) { instructions = {}; }
     var txJSON = createSettingsTransaction(address, settings);
     return utils.prepareTransaction(txJSON, this, instructions);
 }

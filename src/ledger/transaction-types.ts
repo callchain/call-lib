@@ -20,10 +20,10 @@ type Outcome = {
 type Adjustment = {
   address: string,
   amount: {
-   currency: string,
-   counterparty?: string,
-   value: string
- },
+    currency: string,
+    counterparty?: string,
+    value: string
+  },
   tag?: number
 }
 
@@ -54,6 +54,14 @@ type Settings = {
   code?: string,
   transferRate?: number,
   regularKey?: string
+}
+
+type IssueSet = {
+  currency: string,
+  issuer: string,
+  total: string, 
+  additional?: boolean,
+  invoice?: boolean
 }
 
 type OrderCancellation = {
@@ -128,13 +136,23 @@ type SettingsTransaction = {
   sequence: number
 }
 
+type IssueSetTransaction = {
+  type: string,
+  specification: IssueSet,
+  outcome: Outcome,
+  id: string,
+  address: string,
+  sequence: number
+}
+
 export type TransactionOptions = {
   minLedgerVersion?: number,
   maxLedgerVersion?: number
 }
 
 export type TransactionType = PaymentTransaction | OrderTransaction |
-  OrderCancellationTransaction | TrustlineTransaction | SettingsTransaction
+  OrderCancellationTransaction | TrustlineTransaction | SettingsTransaction |
+  IssueSetTransaction
 
 export type TransactionResponse = TransactionType & {
   hash: string,

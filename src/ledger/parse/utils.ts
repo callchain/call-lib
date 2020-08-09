@@ -84,12 +84,12 @@ function parseDeliveredAmount(tx: any): Amount | void {
   }
 
   // DeliveredAmount field was introduced at
-  // ledger 4594095 - after that point its absence
+  // ledger 0 - after that point its absence
   // on a tx flagged as partial payment indicates
   // the full amount was transferred. The amount
   // transferred with a partial payment before
   // that date must be derived from metadata.
-  if (tx.Amount && tx.ledger_index > 4594094) {
+  if (tx.Amount && tx.ledger_index > 0) {
     return parseAmount(tx.Amount)
   }
 

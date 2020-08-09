@@ -40,6 +40,7 @@ function applyAnyCounterpartyEncoding(payment: Payment): void {
     _.forEach(['amount', 'minAmount', 'maxAmount'], key => {
       if (isIOUWithoutCounterparty(adjustment[key])) {
         adjustment[key].counterparty = adjustment.issuer
+        // TODO check use address or issuer
         // adjustment[key].counterparty = adjustment.address
       }
     })

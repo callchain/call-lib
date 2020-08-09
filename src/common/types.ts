@@ -31,22 +31,27 @@ export type Issue = {
   counterparty?: string
 }
 
+// TODO check issuer field
 export type Adjustment = {
   address: string,
   amount: Amount,
-  tag?: number
+  tag?: number,
+  issuer?: string
 }
 
+// TODO check issuer field
 export type MaxAdjustment = {
   address: string,
   maxAmount: Amount,
-  tag?: number
+  tag?: number,
+  issuer?: string
 }
-
+// TODO check issuer field
 export type MinAdjustment = {
   address: string,
   minAmount: Amount,
-  tag?: number
+  tag?: number,
+  issuer?: string
 }
 
 export type Memo = {

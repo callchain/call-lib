@@ -57,8 +57,7 @@ function prepareTransaction(txJSON, api, instructions) {
         var cushion = api._feeCushion;
         return common.serverInfo.getFee(api.connection, cushion).then(function (fee) {
             return api.connection.getFeeRef().then(function (feeRef) {
-                var extraFee = (txJSON.TransactionType !== 'EscrowFinish' ||
-                    txJSON.Fulfillment === undefined) ? 0 :
+                var extraFee = txJSON.Fulfillment === undefined ? 0 :
                     (cushion * feeRef * (32 + Math.floor(new Buffer(txJSON.Fulfillment, 'hex').length / 16)));
                 var feeDrops = common.callToDrops(fee);
                 if (instructions.maxFee !== undefined) {

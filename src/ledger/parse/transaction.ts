@@ -3,16 +3,10 @@ import {parseOutcome} from './utils'
 import {removeUndefined} from '../../common'
 import parsePayment from './payment'
 import parseTrustline from './trustline'
-import parseIssueSet from './issue-set'
+import parseIssueSet from './issueset'
 import parseOrder from './order'
 import parseOrderCancellation from './cancellation'
 import parseSettings from './settings'
-import parseEscrowCreation from './escrow-creation'
-import parseEscrowExecution from './escrow-execution'
-import parseEscrowCancellation from './escrow-cancellation'
-import parsePaymentChannelCreate from './payment-channel-create'
-import parsePaymentChannelFund from './payment-channel-fund'
-import parsePaymentChannelClaim from './payment-channel-claim'
 import parseFeeUpdate from './fee-update'
 import parseAmendment from './amendment'
 
@@ -24,12 +18,6 @@ function parseTransactionType(type) {
     OfferCancel: 'orderCancellation',
     AccountSet: 'settings',
     SetRegularKey: 'settings',
-    EscrowCreate: 'escrowCreation',
-    EscrowFinish: 'escrowExecution',
-    EscrowCancel: 'escrowCancellation',
-    PaymentChannelCreate: 'paymentChannelCreate',
-    PaymentChannelFund: 'paymentChannelFund',
-    PaymentChannelClaim: 'paymentChannelClaim',
     SignerListSet: 'settings',
     SetFee: 'feeUpdate', // pseudo-transaction
     EnableAmendment: 'amendment', // pseudo-transaction
@@ -46,12 +34,6 @@ function parseTransaction(tx: any): any {
     'order': parseOrder,
     'orderCancellation': parseOrderCancellation,
     'settings': parseSettings,
-    'escrowCreation': parseEscrowCreation,
-    'escrowExecution': parseEscrowExecution,
-    'escrowCancellation': parseEscrowCancellation,
-    'paymentChannelCreate': parsePaymentChannelCreate,
-    'paymentChannelFund': parsePaymentChannelFund,
-    'paymentChannelClaim': parsePaymentChannelClaim,
     'feeUpdate': parseFeeUpdate,
     'amendment': parseAmendment,
     'issueSet' : parseIssueSet,

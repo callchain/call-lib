@@ -2,7 +2,7 @@ import * as _ from 'lodash'
 import * as assert from 'assert'
 import BigNumber from 'bignumber.js'
 import * as utils from './utils'
-const validate = utils.common.validate
+// const validate = utils.common.validate
 const AccountFlagIndices = utils.common.constants.AccountFlagIndices
 const AccountFields = utils.common.constants.AccountFields
 import {Instructions, Prepare} from './types'
@@ -124,6 +124,7 @@ function createSettingsTransactionWithoutMemos(
       SignerEntries: _.map(settings.signers.weights, formatSignerEntry)
     }
   }
+  // to remove, move to issueset transaction
   if (settings.total) {
       return {
           TransactionType: 'IssueSet',
@@ -157,7 +158,9 @@ function createSettingsTransaction(account: string, settings: Settings
 function prepareSettings(address: string, settings: Settings,
   instructions: Instructions = {}
 ): Promise<Prepare> {
+  // TODO use it
   // validate.prepareSettings({address, settings, instructions})
+
   const txJSON = createSettingsTransaction(address, settings)
   return utils.prepareTransaction(txJSON, this, instructions)
 }

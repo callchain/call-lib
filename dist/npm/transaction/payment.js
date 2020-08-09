@@ -20,6 +20,7 @@ function applyAnyCounterpartyEncoding(payment) {
         _.forEach(['amount', 'minAmount', 'maxAmount'], function (key) {
             if (isIOUWithoutCounterparty(adjustment[key])) {
                 adjustment[key].counterparty = adjustment.issuer;
+                // TODO check use address or issuer
                 // adjustment[key].counterparty = adjustment.address
             }
         });

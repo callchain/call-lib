@@ -50,9 +50,6 @@ _.partial(validateOptions, 'getOrderbookParameters')
 export const getTransaction =
 _.partial(validateOptions, 'getTransactionParameters')
 
-export const getPaymentChannel =
-_.partial(validateOptions, 'getPaymentChannelParameters')
-
 export const getLedger =
 _.partial(validateOptions, 'getLedgerParameters')
 
@@ -74,24 +71,6 @@ _.partial(schemaValidate, 'prepareSettingsParameters')
 export const prepareIssueSet =
 _.partial(schemaValidate, 'prepareIssueSetParameters')
 
-export const prepareEscrowCreation =
-_.partial(schemaValidate, 'prepareEscrowCreationParameters')
-
-export const prepareEscrowCancellation =
-_.partial(schemaValidate, 'prepareEscrowCancellationParameters')
-
-export const prepareEscrowExecution =
-_.partial(schemaValidate, 'prepareEscrowExecutionParameters')
-
-export const preparePaymentChannelCreate =
-_.partial(schemaValidate, 'preparePaymentChannelCreateParameters')
-
-export const preparePaymentChannelFund =
-_.partial(schemaValidate, 'preparePaymentChannelFundParameters')
-
-export const preparePaymentChannelClaim =
-_.partial(schemaValidate, 'preparePaymentChannelClaimParameters')
-
 export const sign =
 _.partial(schemaValidate, 'signParameters')
 
@@ -106,12 +85,6 @@ _.partial(schemaValidate, 'computeLedgerHashParameters')
 
 export const generateAddress =
 _.partial(schemaValidate, 'generateAddressParameters')
-
-export const signPaymentChannelClaim =
-_.partial(schemaValidate, 'signPaymentChannelClaimParameters')
-
-export const verifyPaymentChannelClaim =
-_.partial(schemaValidate, 'verifyPaymentChannelClaimParameters')
 
 export const apiOptions =
 _.partial(schemaValidate, 'api-options')

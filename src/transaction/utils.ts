@@ -68,8 +68,7 @@ function prepareTransaction(txJSON: any, api: CallAPI,
     return common.serverInfo.getFee(api.connection, cushion).then(fee => {
       return api.connection.getFeeRef().then(feeRef => {
         const extraFee =
-          (txJSON.TransactionType !== 'EscrowFinish' ||
-            txJSON.Fulfillment === undefined) ? 0 :
+          txJSON.Fulfillment === undefined ? 0 :
             (cushion * feeRef * (32 + Math.floor(
               new Buffer(txJSON.Fulfillment, 'hex').length / 16)))
         const feeDrops = common.callToDrops(fee)
@@ -99,7 +98,7 @@ function prepareTransaction(txJSON: any, api: CallAPI,
       return txJSON
     })
   }
-    function stringToHexWide(s) {//中英文转16进制
+    function stringToHexWide(s) {
         var result = '';
         for (var i=0; i<s.length; i++) {
             var b = s.charCodeAt(i);

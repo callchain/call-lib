@@ -4,7 +4,8 @@ const {computeTransactionHash} = require('call-hashes')
 import * as utils from './utils'
 import parseTransaction from './parse/transaction'
 import getTransaction from './transaction'
-import {validate, errors} from '../common'
+import {validate} from '../common'
+// import {validate, errors} from '../common'
 import {Connection} from '../common'
 import {TransactionType} from './transaction-types'
 
@@ -20,7 +21,8 @@ type TransactionsOptions = {
   counterparty?: string,
   types?: Array<string>,
   binary?: boolean,
-  startTx?: TransactionType
+  startTx?: TransactionType,
+  marker?: string
 }
 
 type GetTransactionsResponse = Array<TransactionType>
@@ -115,46 +117,48 @@ function getAccountTx(connection: Connection, address: string,
     formatPartialResponse(address, options, response))
 }
 
-function checkForLedgerGaps(connection: Connection,
-  options: TransactionsOptions, transactions: GetTransactionsResponse
-) {
-  let {minLedgerVersion, maxLedgerVersion} = options
+// function checkForLedgerGaps(connection: Connection,
+//   options: TransactionsOptions, transactions: GetTransactionsResponse
+// ) {
+//   let {minLedgerVersion, maxLedgerVersion} = options
 
-  // if we reached the limit on number of transactions, then we can shrink
-  // the required ledger range to only guarantee that there are no gaps in
-  // the range of ledgers spanned by those transactions
-  if (options.limit && transactions.length === options.limit) {
-    if (options.earliestFirst) {
-      maxLedgerVersion = _.last(transactions)!.outcome.ledgerVersion
-    } else {
-      minLedgerVersion = _.last(transactions)!.outcome.ledgerVersion
-    }
-  }
+//   // if we reached the limit on number of transactions, then we can shrink
+//   // the required ledger range to only guarantee that there are no gaps in
+//   // the range of ledgers spanned by those transactions
+//   if (options.limit && transactions.length === options.limit) {
+//     if (options.earliestFirst) {
+//       maxLedgerVersion = _.last(transactions)!.outcome.ledgerVersion
+//     } else {
+//       minLedgerVersion = _.last(transactions)!.outcome.ledgerVersion
+//     }
+//   }
 
-  return utils.hasCompleteLedgerRange(connection, minLedgerVersion,
-    maxLedgerVersion).then(hasCompleteLedgerRange => {
-    if (!hasCompleteLedgerRange) {
-      throw new errors.MissingLedgerHistoryError()
-    }
-  })
-}
+//   return utils.hasCompleteLedgerRange(connection, minLedgerVersion,
+//     maxLedgerVersion).then(hasCompleteLedgerRange => {
+//     if (!hasCompleteLedgerRange) {
+//       throw new errors.MissingLedgerHistoryError()
+//     }
+//   })
+// }
 
-function formatResponse(connection: Connection, options: TransactionsOptions,
-  transactions: GetTransactionsResponse
-) {
-  const compare = options.earliestFirst ? utils.compareTransactions :
-    _.rearg(utils.compareTransactions, 1, 0)
-  const sortedTransactions = transactions.sort(compare)
-  return checkForLedgerGaps(connection, options, sortedTransactions).then(
-    () => sortedTransactions)
-}
+// function formatResponse(connection: Connection, options: TransactionsOptions,
+//   transactions: GetTransactionsResponse
+// ) {
+//   const compare = options.earliestFirst ? utils.compareTransactions :
+//     _.rearg(utils.compareTransactions, 1, 0)
+//   // const sortedTransactions = transactions.sort(compare)
+//   const sortedTransactions = transactions
+//   return checkForLedgerGaps(connection, options, sortedTransactions).then(
+//     () => sortedTransactions)
+// }
 
 function getTransactionsInternal(connection: Connection, address: string,
   options: TransactionsOptions
 ): Promise<GetTransactionsResponse> {
   const getter = _.partial(getAccountTx, connection, address, options)
-  const format = _.partial(formatResponse, connection, options)
+  // const format = _.partial(formatResponse, connection, options)
   // return utils.getRecursive(getter, options.limit).then(format);
+  // TODO format used or not
   return utils.getRecursive(getter, options.limit, options.marker);
 }
 
