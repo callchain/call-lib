@@ -23,6 +23,7 @@ exports.getTransactions = _.partial(validateOptions, 'getTransactionsParameters'
 exports.getSettings = _.partial(validateOptions, 'getSettingsParameters');
 exports.getAccountInfo = _.partial(validateOptions, 'getAccountInfoParameters');
 exports.getTrustlines = _.partial(validateOptions, 'getTrustlinesParameters');
+exports.getIssues = _.partial(validateOptions, 'getIssuesParameters');
 exports.getBalances = _.partial(validateOptions, 'getBalancesParameters');
 exports.getBalanceSheet = _.partial(validateOptions, 'getBalanceSheetParameters');
 exports.getOrders = _.partial(validateOptions, 'getOrdersParameters');

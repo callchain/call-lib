@@ -4,22 +4,19 @@ var _ = require("lodash");
 var utils = require("./utils");
 var common_1 = require("../common");
 var account_trustline_1 = require("./parse/account-trustline");
+// interface GetAccountLinesResponse {
+//   marker?: any,
+//   results: Trustline[]
+// }
 function currencyFilter(currency, trustline) {
     return currency === null || trustline.specification.currency === currency;
 }
 function formatResponse(options, data) {
-    var response = { results: data.lines.map(account_trustline_1.default)
-            .filter(_.partial(currencyFilter, options.currency || null)) };
-    // if(data.marker){
-    //     response.marker = data.marker;
-    // }
-    // if(data.NickName){
-    //     response.nickName = hexToStringWide(hexToStringWide(data.NickName));
-    // }
-    // if(data.call_info){
-    //     response.call_info = data.call_info;
-    // }
-    return response;
+    return {
+        marker: data.marker,
+        results: data.lines.map(account_trustline_1.default)
+            .filter(_.partial(currencyFilter, options.currency || null))
+    };
 }
 function getAccountLines(connection, address, ledgerVersion, options, marker, limit) {
     var request = {
@@ -38,7 +35,7 @@ function getTrustlines(address, options) {
     common_1.validate.getTrustlines({ address: address, options: options });
     return this.getLedgerVersion().then(function (ledgerVersion) {
         var getter = _.partial(getAccountLines, _this.connection, address, options.ledgerVersion || ledgerVersion, options);
-        return utils.getRecursive(getter, options.limit, options.currency);
+        return utils.getRecursive(getter, options.limit);
     });
 }
 exports.default = getTrustlines;

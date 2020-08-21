@@ -119,7 +119,7 @@ function getTransactionsInternal(connection, address, options) {
     // const format = _.partial(formatResponse, connection, options)
     // return utils.getRecursive(getter, options.limit).then(format);
     // TODO format used or not
-    return utils.getRecursive(getter, options.limit, options.marker);
+    return utils.getRecursive(getter, options.limit);
 }
 function getTransactions(address, options) {
     var _this = this;

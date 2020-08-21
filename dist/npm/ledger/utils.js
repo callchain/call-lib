@@ -22,35 +22,24 @@ function getCALLBalance(connection, address, ledgerVersion) {
 exports.getCALLBalance = getCALLBalance;
 // If the marker is omitted from a response, you have reached the end
 function getRecursiveRecur(getter, marker, limit) {
-    var jobs = getter(marker, limit).then(function (data) {
+    return getter(marker, limit).then(function (data) {
         var remaining = limit - data.results.length;
         if (remaining > 0 && data.marker !== undefined) {
-            return getRecursiveRecur(getter, data.marker, remaining).then(function (result) {
-                data.results = data.results.concat(result["results"]);
-                if (result['marker'])
-                    data.marker = result['marker'];
-                else
-                    delete data.marker;
-                return data;
+            return getRecursiveRecur(getter, data.marker, remaining).then(function (results) {
+                return data.results.concat(results);
             });
         }
-        var obj = { results: data.results };
-        if (data.marker) {
-            obj['marker'] = data.marker;
-        }
-        if (data['nickName'])
-            obj['nickName'] = data['nickName'];
-        if (data['call_info'])
-            obj['call_info'] = data['call_info'];
-        return obj;
+        return data.results.slice(0, limit);
     });
-    return jobs;
 }
-// function getRecursive(getter: Getter, limit?: number): Promise<Array<any>> {
-//   return getRecursiveRecur(getter, undefined, limit || Infinity)
-// }
-function getRecursive(getter, limit, marker) {
-    return getRecursiveRecur(getter, marker, limit || Infinity);
+/**
+ * In user terminal, user DO NOT need to care marker,
+ * user user page offset and limit model
+ * @param getter
+ * @param limit
+ */
+function getRecursive(getter, limit) {
+    return getRecursiveRecur(getter, undefined, limit || Infinity);
 }
 exports.getRecursive = getRecursive;
 function renameCounterpartyToIssuer(obj) {

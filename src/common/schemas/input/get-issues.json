@@ -1,0 +1,34 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "title": "getIssuesParameters",
+    "description": "Parameters for getIssues",
+    "type": "object",
+    "properties": {
+      "address": {
+        "$ref": "address",
+        "description": "The address of the account to get issues for."
+      },
+      "options": {
+        "description": "Options to filter and determine which issue set to return.",
+        "properties": {
+          "invoice": {
+            "$ref": "boolean",
+            "description": "Only return invoice issues."
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Return at most this many trustlines."
+          },
+          "ledgerVersion": {
+            "$ref": "ledgerVersion",
+            "description": "Return trustlines as they were in this historical ledger version."
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "additionalProperties": true,
+    "required": ["address"]
+  }
+  

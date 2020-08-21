@@ -35,6 +35,9 @@ _.partial(validateOptions, 'getAccountInfoParameters')
 export const getTrustlines =
 _.partial(validateOptions, 'getTrustlinesParameters')
 
+export const getIssues = 
+_.partial(validateOptions, 'getIssuesParameters')
+
 export const getBalances =
 _.partial(validateOptions, 'getBalancesParameters')
 

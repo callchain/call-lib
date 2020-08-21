@@ -9,7 +9,7 @@ type GetOrders = Array<Order>
 
 function requestAccountOffers(connection: Connection, address: string,
   ledgerVersion: number, marker: string, limit: number
-): Promise<Object> {
+): Promise<any> {
   return connection.request({
     command: 'account_offers',
     account: address,
@@ -32,7 +32,7 @@ function getOrders(address: string, options: OrdersOptions = {}
 
     // return utils.getRecursive(getter, _options.limit).then(orders.results => _.sortBy(orders, order => order.properties.sequence))
 
-    return utils.getRecursive(getter, _options.limit,_options.marker)
+    return utils.getRecursive(getter, _options.limit);
   })
 }
 

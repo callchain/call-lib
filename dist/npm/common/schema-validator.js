@@ -82,6 +82,7 @@ function loadSchemas() {
         require('./schemas/input/get-transaction.json'),
         require('./schemas/input/get-transactions.json'),
         require('./schemas/input/get-trustlines.json'),
+        require('./schemas/input/get-issues.json'),
         require('./schemas/input/prepare-payment.json'),
         require('./schemas/input/prepare-order.json'),
         require('./schemas/input/prepare-trustline.json'),

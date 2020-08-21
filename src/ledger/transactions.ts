@@ -159,7 +159,7 @@ function getTransactionsInternal(connection: Connection, address: string,
   // const format = _.partial(formatResponse, connection, options)
   // return utils.getRecursive(getter, options.limit).then(format);
   // TODO format used or not
-  return utils.getRecursive(getter, options.limit, options.marker);
+  return utils.getRecursive(getter, options.limit);
 }
 
 function getTransactions(address: string, options: TransactionsOptions = {}
