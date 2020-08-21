@@ -11,8 +11,6 @@ function formatAccountInfo(response) {
         previousAffectingTransactionID: data.PreviousTxnID,
         previousAffectingTransactionLedgerVersion: data.PreviousTxnLgrSeq
     };
-    // if(data.NickName)
-    //   obj.nickName = hexToStringWide(hexToStringWide(data.NickName));
     return common_1.removeUndefined(obj);
 }
 function getAccountInfo(address, options) {

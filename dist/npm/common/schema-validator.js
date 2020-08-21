@@ -17,7 +17,7 @@ function loadSchemas() {
         require('./schemas/objects/sequence.json'),
         require('./schemas/objects/signature.json'),
         require('./schemas/objects/issue.json'),
-        require('./schemas/objects/issueSet.json'),
+        require('./schemas/objects/issue-set.json'),
         require('./schemas/objects/ledgerversion.json'),
         require('./schemas/objects/max-adjustment.json'),
         require('./schemas/objects/memo.json'),

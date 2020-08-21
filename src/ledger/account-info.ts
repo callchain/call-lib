@@ -44,8 +44,7 @@ function formatAccountInfo(response: AccountDataResponse) {
       previousAffectingTransactionID: data.PreviousTxnID,
       previousAffectingTransactionLedgerVersion: data.PreviousTxnLgrSeq
   };
-  // if(data.NickName)
-  //   obj.nickName = hexToStringWide(hexToStringWide(data.NickName));
+
   return removeUndefined(obj);
 }
 

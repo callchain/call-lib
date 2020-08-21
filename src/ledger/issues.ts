@@ -2,32 +2,9 @@ import * as utils from './utils'
 import * as _ from 'lodash'
 import {Connection, validate} from '../common'
 import parseAccountIssue from './parse/account-issue'
+import {IssueItem, IssueOptions} from './issues-types'
 
 
-type IssueSpecification = {
-    currency: string,
-    issuer: string,
-    value: string,
-    additional?: boolean,
-    invoice?: boolean,
-    transferRate: string,
-}
-
-type IssueItem = {
-    specification: IssueSpecification,
-    state: {
-        fans: string,
-        value: string,
-        freeze?: string
-    }
-}
-
-type IssueOptions = {
-    invoice?: boolean,
-    limit?: number,
-    ledgerVersion?: number,
-    marker?: string
-}
 
 type GetIssuesResponse = Array<IssueItem>
 // interface GetAccountIssuesResponse {

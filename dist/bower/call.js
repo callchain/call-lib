@@ -83,7 +83,7 @@ var errors = __webpack_require__(36);
 exports.errors = errors;
 var validate = __webpack_require__(103);
 exports.validate = validate;
-var serverInfo = __webpack_require__(229);
+var serverInfo = __webpack_require__(230);
 exports.serverInfo = serverInfo;
 var utils_1 = __webpack_require__(48);
 exports.dropsToCall = utils_1.dropsToCall;
@@ -93,7 +93,7 @@ exports.removeUndefined = utils_1.removeUndefined;
 exports.convertKeysFromSnakeCaseToCamelCase = utils_1.convertKeysFromSnakeCaseToCamelCase;
 exports.iso8601ToCallTime = utils_1.iso8601ToCallTime;
 exports.callTimeToISO8601 = utils_1.callTimeToISO8601;
-var connection_1 = __webpack_require__(230);
+var connection_1 = __webpack_require__(231);
 exports.Connection = connection_1.default;
 var txflags_1 = __webpack_require__(62);
 exports.txFlags = txflags_1.txFlags;
@@ -644,7 +644,7 @@ var objectKeys = Object.keys || function (obj) {
   return keys;
 };
 
-/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(12)))
+/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(13)))
 
 /***/ }),
 /* 4 */
@@ -750,8 +750,8 @@ module.exports = function makeClass(klass_, definition_) {
 
 
 
-var base64 = __webpack_require__(231)
-var ieee754 = __webpack_require__(232)
+var base64 = __webpack_require__(232)
+var ieee754 = __webpack_require__(233)
 var isArray = __webpack_require__(69)
 
 exports.Buffer = Buffer
@@ -2530,7 +2530,7 @@ function isnan (val) {
   return val !== val // eslint-disable-line no-self-compare
 }
 
-/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(12)))
+/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(13)))
 
 /***/ }),
 /* 6 */
@@ -8060,6 +8060,140 @@ Mont.prototype.invm = function invm(a) {
 /* 11 */
 /***/ (function(module, exports, __webpack_require__) {
 
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+var _ = __webpack_require__(0);
+var assert = __webpack_require__(3);
+var common = __webpack_require__(1);
+exports.common = common;
+function clamp(value, min, max) {
+    assert(min <= max, 'Illegal clamp bounds');
+    return Math.min(Math.max(value, min), max);
+}
+exports.clamp = clamp;
+function getCALLBalance(connection, address, ledgerVersion) {
+    var request = {
+        command: 'account_info',
+        account: address,
+        ledger_index: ledgerVersion
+    };
+    return connection.request(request).then(function (data) {
+        return common.dropsToCall(data.account_data.Balance);
+    });
+}
+exports.getCALLBalance = getCALLBalance;
+// If the marker is omitted from a response, you have reached the end
+function getRecursiveRecur(getter, marker, limit) {
+    return getter(marker, limit).then(function (data) {
+        var remaining = limit - data.results.length;
+        if (remaining > 0 && data.marker !== undefined) {
+            return getRecursiveRecur(getter, data.marker, remaining).then(function (results) {
+                return data.results.concat(results);
+            });
+        }
+        return data.results.slice(0, limit);
+    });
+}
+/**
+ * In user terminal, user DO NOT need to care marker,
+ * user user page offset and limit model
+ * @param getter
+ * @param limit
+ */
+function getRecursive(getter, limit) {
+    return getRecursiveRecur(getter, undefined, limit || Infinity);
+}
+exports.getRecursive = getRecursive;
+function renameCounterpartyToIssuer(obj) {
+    var issuer = (obj.counterparty !== undefined) ?
+        obj.counterparty :
+        ((obj.issuer !== undefined) ? obj.issuer : undefined);
+    var withIssuer = Object.assign({}, obj, { issuer: issuer });
+    delete withIssuer.counterparty;
+    return withIssuer;
+}
+exports.renameCounterpartyToIssuer = renameCounterpartyToIssuer;
+function renameCounterpartyToIssuerInOrder(order) {
+    var taker_gets = renameCounterpartyToIssuer(order.taker_gets);
+    var taker_pays = renameCounterpartyToIssuer(order.taker_pays);
+    var changes = { taker_gets: taker_gets, taker_pays: taker_pays };
+    return _.assign({}, order, _.omitBy(changes, _.isUndefined));
+}
+exports.renameCounterpartyToIssuerInOrder = renameCounterpartyToIssuerInOrder;
+function signum(num) {
+    return (num === 0) ? 0 : (num > 0 ? 1 : -1);
+}
+function compareTransactions(first, second) {
+    if (!first.outcome || !second.outcome) {
+        return 0;
+    }
+    if (first.outcome.ledgerVersion === second.outcome.ledgerVersion) {
+        return signum(first.outcome.indexInLedger - second.outcome.indexInLedger);
+    }
+    return first.outcome.ledgerVersion < second.outcome.ledgerVersion ? -1 : 1;
+}
+exports.compareTransactions = compareTransactions;
+function hasCompleteLedgerRange(connection, minLedgerVersion, maxLedgerVersion) {
+    var firstLedgerVersion = 32570; // earlier versions have been lost
+    return connection.hasLedgerVersions(minLedgerVersion || firstLedgerVersion, maxLedgerVersion);
+}
+exports.hasCompleteLedgerRange = hasCompleteLedgerRange;
+function isPendingLedgerVersion(connection, maxLedgerVersion) {
+    return connection.getLedgerVersion().then(function (ledgerVersion) {
+        return ledgerVersion < (maxLedgerVersion || 0);
+    });
+}
+exports.isPendingLedgerVersion = isPendingLedgerVersion;
+function ensureLedgerVersion(options) {
+    if (Boolean(options) && options.ledgerVersion !== undefined &&
+        options.ledgerVersion !== null) {
+        return Promise.resolve(options);
+    }
+    return this.getLedgerVersion().then(function (ledgerVersion) {
+        return _.assign({}, options, { ledgerVersion: ledgerVersion });
+    });
+}
+exports.ensureLedgerVersion = ensureLedgerVersion;
+function hexToStringWide(h) {
+    var a = [];
+    var i = 0;
+    if (h.length % 4) {
+        a.push(String.fromCharCode(parseInt(h.substring(0, 4), 16)));
+        i = 4;
+    }
+    for (; i < h.length; i += 4) {
+        a.push(String.fromCharCode(parseInt(h.substring(i, i + 4), 16)));
+    }
+    return a.join('');
+}
+exports.hexToStringWide = hexToStringWide;
+function stringToHexWide(s) {
+    var result = '';
+    for (var i = 0; i < s.length; i++) {
+        var b = s.charCodeAt(i);
+        if (0 <= b && b < 16) {
+            result += '000' + b.toString(16);
+        }
+        if (16 <= b && b < 255) {
+            result += '00' + b.toString(16);
+        }
+        if (255 <= b && b < 4095) {
+            result += '0' + b.toString(16);
+        }
+        if (4095 <= b && b < 65535) {
+            result += b.toString(16);
+        }
+    }
+    return result;
+}
+exports.stringToHexWide = stringToHexWide;
+
+
+/***/ }),
+/* 12 */
+/***/ (function(module, exports, __webpack_require__) {
+
 /*! safe-buffer. MIT License. Feross Aboukhadijeh <https://feross.org/opensource> */
 /* eslint-disable node/no-deprecated-api */
 var buffer = __webpack_require__(5)
@@ -8128,7 +8262,7 @@ SafeBuffer.allocUnsafeSlow = function (size) {
 
 
 /***/ }),
-/* 12 */
+/* 13 */
 /***/ (function(module, exports) {
 
 var g;
@@ -8155,7 +8289,7 @@ module.exports = g;
 
 
 /***/ }),
-/* 13 */
+/* 14 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -8437,131 +8571,6 @@ function shr64_lo(ah, al, num) {
   return r >>> 0;
 }
 exports.shr64_lo = shr64_lo;
-
-
-/***/ }),
-/* 14 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-var _ = __webpack_require__(0);
-var assert = __webpack_require__(3);
-var common = __webpack_require__(1);
-exports.common = common;
-function clamp(value, min, max) {
-    assert(min <= max, 'Illegal clamp bounds');
-    return Math.min(Math.max(value, min), max);
-}
-exports.clamp = clamp;
-function getCALLBalance(connection, address, ledgerVersion) {
-    var request = {
-        command: 'account_info',
-        account: address,
-        ledger_index: ledgerVersion
-    };
-    return connection.request(request).then(function (data) {
-        return common.dropsToCall(data.account_data.Balance);
-    });
-}
-exports.getCALLBalance = getCALLBalance;
-// If the marker is omitted from a response, you have reached the end
-function getRecursiveRecur(getter, marker, limit) {
-    var jobs = getter(marker, limit).then(function (data) {
-        var remaining = limit - data.results.length;
-        if (remaining > 0 && data.marker !== undefined) {
-            return getRecursiveRecur(getter, data.marker, remaining).then(function (result) {
-                data.results = data.results.concat(result["results"]);
-                if (result['marker'])
-                    data.marker = result['marker'];
-                else
-                    delete data.marker;
-                return data;
-            });
-        }
-        var obj = { results: data.results };
-        if (data.marker) {
-            obj['marker'] = data.marker;
-        }
-        if (data['nickName'])
-            obj['nickName'] = data['nickName'];
-        if (data['call_info'])
-            obj['call_info'] = data['call_info'];
-        return obj;
-    });
-    return jobs;
-}
-// function getRecursive(getter: Getter, limit?: number): Promise<Array<any>> {
-//   return getRecursiveRecur(getter, undefined, limit || Infinity)
-// }
-function getRecursive(getter, limit, marker) {
-    return getRecursiveRecur(getter, marker, limit || Infinity);
-}
-exports.getRecursive = getRecursive;
-function renameCounterpartyToIssuer(obj) {
-    var issuer = (obj.counterparty !== undefined) ?
-        obj.counterparty :
-        ((obj.issuer !== undefined) ? obj.issuer : undefined);
-    var withIssuer = Object.assign({}, obj, { issuer: issuer });
-    delete withIssuer.counterparty;
-    return withIssuer;
-}
-exports.renameCounterpartyToIssuer = renameCounterpartyToIssuer;
-function renameCounterpartyToIssuerInOrder(order) {
-    var taker_gets = renameCounterpartyToIssuer(order.taker_gets);
-    var taker_pays = renameCounterpartyToIssuer(order.taker_pays);
-    var changes = { taker_gets: taker_gets, taker_pays: taker_pays };
-    return _.assign({}, order, _.omitBy(changes, _.isUndefined));
-}
-exports.renameCounterpartyToIssuerInOrder = renameCounterpartyToIssuerInOrder;
-function signum(num) {
-    return (num === 0) ? 0 : (num > 0 ? 1 : -1);
-}
-function compareTransactions(first, second) {
-    if (!first.outcome || !second.outcome) {
-        return 0;
-    }
-    if (first.outcome.ledgerVersion === second.outcome.ledgerVersion) {
-        return signum(first.outcome.indexInLedger - second.outcome.indexInLedger);
-    }
-    return first.outcome.ledgerVersion < second.outcome.ledgerVersion ? -1 : 1;
-}
-exports.compareTransactions = compareTransactions;
-function hasCompleteLedgerRange(connection, minLedgerVersion, maxLedgerVersion) {
-    var firstLedgerVersion = 32570; // earlier versions have been lost
-    return connection.hasLedgerVersions(minLedgerVersion || firstLedgerVersion, maxLedgerVersion);
-}
-exports.hasCompleteLedgerRange = hasCompleteLedgerRange;
-function isPendingLedgerVersion(connection, maxLedgerVersion) {
-    return connection.getLedgerVersion().then(function (ledgerVersion) {
-        return ledgerVersion < (maxLedgerVersion || 0);
-    });
-}
-exports.isPendingLedgerVersion = isPendingLedgerVersion;
-function ensureLedgerVersion(options) {
-    if (Boolean(options) && options.ledgerVersion !== undefined &&
-        options.ledgerVersion !== null) {
-        return Promise.resolve(options);
-    }
-    return this.getLedgerVersion().then(function (ledgerVersion) {
-        return _.assign({}, options, { ledgerVersion: ledgerVersion });
-    });
-}
-exports.ensureLedgerVersion = ensureLedgerVersion;
-function hexToStringWide(h) {
-    var a = [];
-    var i = 0;
-    if (h.length % 4) {
-        a.push(String.fromCharCode(parseInt(h.substring(0, 4), 16)));
-        i = 4;
-    }
-    for (; i < h.length; i += 4) {
-        a.push(String.fromCharCode(parseInt(h.substring(i, i + 4), 16)));
-    }
-    return a.join('');
-}
-exports.hexToStringWide = hexToStringWide;
 
 
 /***/ }),
@@ -9261,7 +9270,7 @@ module.exports = {
 
 var hash = exports;
 
-hash.utils = __webpack_require__(13);
+hash.utils = __webpack_require__(14);
 hash.common = __webpack_require__(32);
 hash.sha = __webpack_require__(113);
 hash.ripemd = __webpack_require__(117);
@@ -9284,7 +9293,7 @@ hash.ripemd160 = hash.ripemd.ripemd160;
 /* WEBPACK VAR INJECTION */(function(Buffer) {
 Object.defineProperty(exports, "__esModule", { value: true });
 var _ = __webpack_require__(0);
-var transactionParser = __webpack_require__(242);
+var transactionParser = __webpack_require__(243);
 var bignumber_js_1 = __webpack_require__(6);
 var common = __webpack_require__(1);
 var amount_1 = __webpack_require__(23);
@@ -9414,20 +9423,20 @@ exports.parseMemos = parseMemos;
 var enums = __webpack_require__(24);var
 Field = enums.Field;var _require =
 __webpack_require__(51),AccountID = _require.AccountID;var _require2 =
-__webpack_require__(256),Amount = _require2.Amount;var _require3 =
-__webpack_require__(258),Blob = _require3.Blob;var _require4 =
+__webpack_require__(257),Amount = _require2.Amount;var _require3 =
+__webpack_require__(259),Blob = _require3.Blob;var _require4 =
 __webpack_require__(55),Currency = _require4.Currency;var _require5 =
-__webpack_require__(259),Hash128 = _require5.Hash128;var _require6 =
+__webpack_require__(260),Hash128 = _require5.Hash128;var _require6 =
 __webpack_require__(52),Hash160 = _require6.Hash160;var _require7 =
 __webpack_require__(76),Hash256 = _require7.Hash256;var _require8 =
-__webpack_require__(260),PathSet = _require8.PathSet;var _require9 =
-__webpack_require__(261),STArray = _require9.STArray;var _require10 =
+__webpack_require__(261),PathSet = _require8.PathSet;var _require9 =
+__webpack_require__(262),STArray = _require9.STArray;var _require10 =
 __webpack_require__(77),STObject = _require10.STObject;var _require11 =
-__webpack_require__(262),UInt16 = _require11.UInt16;var _require12 =
-__webpack_require__(263),UInt32 = _require12.UInt32;var _require13 =
+__webpack_require__(263),UInt16 = _require11.UInt16;var _require12 =
+__webpack_require__(264),UInt32 = _require12.UInt32;var _require13 =
 __webpack_require__(75),UInt64 = _require13.UInt64;var _require14 =
-__webpack_require__(264),UInt8 = _require14.UInt8;var _require15 =
-__webpack_require__(265),Vector256 = _require15.Vector256;
+__webpack_require__(265),UInt8 = _require14.UInt8;var _require15 =
+__webpack_require__(266),Vector256 = _require15.Vector256;
 
 var coreTypes = {
   AccountID: AccountID,
@@ -9959,7 +9968,7 @@ var _slicedToArray = function () {function sliceIterator(arr, i) {var _arr = [];
 var _ = __webpack_require__(0);var _require =
 __webpack_require__(7),parseBytes = _require.parseBytes,serializeUIntN = _require.serializeUIntN;
 var makeClass = __webpack_require__(4);
-var enums = __webpack_require__(255);
+var enums = __webpack_require__(256);
 
 function transformWith(func, obj) {
   return _.transform(obj, func);
@@ -10137,7 +10146,7 @@ module.exports = Enums;
 
   var Buffer;
   try {
-    Buffer = __webpack_require__(257).Buffer;
+    Buffer = __webpack_require__(258).Buffer;
   } catch (e) {
   }
 
@@ -13805,7 +13814,7 @@ Object.defineProperty(Duplex.prototype, 'destroyed', {
 /* 28 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var Buffer = __webpack_require__(11).Buffer
+var Buffer = __webpack_require__(12).Buffer
 
 // prototype class for hash functions
 function Hash (blockSize, finalSize) {
@@ -14691,7 +14700,7 @@ assert.equal = function assertEqual(l, r, msg) {
 "use strict";
 
 
-var utils = __webpack_require__(13);
+var utils = __webpack_require__(14);
 var assert = __webpack_require__(31);
 
 function BlockHash() {
@@ -14849,7 +14858,7 @@ module.exports = {
 
 /*<replacement>*/
 
-var Buffer = __webpack_require__(11).Buffer;
+var Buffer = __webpack_require__(12).Buffer;
 /*</replacement>*/
 
 var isEncoding = Buffer.isEncoding || function (encoding) {
@@ -15624,7 +15633,7 @@ module.exports = {
 
 "use strict";
 var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) {return typeof obj;} : function (obj) {return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj;};var assert = __webpack_require__(3);
-var coreTypes = __webpack_require__(254);var
+var coreTypes = __webpack_require__(255);var
 quality =
 
 
@@ -15876,7 +15885,7 @@ var binary = __webpack_require__(40);
 var hashprefixes = __webpack_require__(94);
 var SHAMap = __webpack_require__(95).SHAMap;
 var SHAMapTreeNode = __webpack_require__(95).SHAMapTreeNode;
-var ledgerspaces = __webpack_require__(297);
+var ledgerspaces = __webpack_require__(298);
 var sha512half = __webpack_require__(96);
 
 function hash(hex) {
@@ -17201,7 +17210,7 @@ function localstorage() {
 	}
 }
 
-module.exports = __webpack_require__(236)(exports);
+module.exports = __webpack_require__(237)(exports);
 
 const {formatters} = module.exports;
 
@@ -17229,14 +17238,14 @@ Object.defineProperty(exports, "__esModule", { value: true });
 var assert = __webpack_require__(3);
 var utils_1 = __webpack_require__(19);
 var common_1 = __webpack_require__(1);
-var payment_1 = __webpack_require__(245);
-var trustline_1 = __webpack_require__(246);
-var issueset_1 = __webpack_require__(247);
-var order_1 = __webpack_require__(248);
-var cancellation_1 = __webpack_require__(249);
-var settings_1 = __webpack_require__(250);
-var fee_update_1 = __webpack_require__(251);
-var amendment_1 = __webpack_require__(252);
+var payment_1 = __webpack_require__(246);
+var trustline_1 = __webpack_require__(247);
+var issueset_1 = __webpack_require__(248);
+var order_1 = __webpack_require__(249);
+var cancellation_1 = __webpack_require__(250);
+var settings_1 = __webpack_require__(251);
+var fee_update_1 = __webpack_require__(252);
+var amendment_1 = __webpack_require__(253);
 function parseTransactionType(type) {
     var mapping = {
         Payment: 'payment',
@@ -17613,7 +17622,7 @@ module.exports = {
 var BN = __webpack_require__(25);
 var types = __webpack_require__(20);var _require =
 __webpack_require__(33),HashPrefix = _require.HashPrefix;var _require2 =
-__webpack_require__(266),BinaryParser = _require2.BinaryParser;var _require3 =
+__webpack_require__(267),BinaryParser = _require2.BinaryParser;var _require3 =
 __webpack_require__(54),BinarySerializer = _require3.BinarySerializer,BytesList = _require3.BytesList;var _require4 =
 __webpack_require__(7),bytesToHex = _require4.bytesToHex,slice = _require4.slice,parseBytes = _require4.parseBytes;var _require5 =
 
@@ -17797,7 +17806,7 @@ exports.Readable = exports;
 exports.Writable = __webpack_require__(60);
 exports.Duplex = __webpack_require__(21);
 exports.Transform = __webpack_require__(92);
-exports.PassThrough = __webpack_require__(289);
+exports.PassThrough = __webpack_require__(290);
 
 
 /***/ }),
@@ -18560,7 +18569,7 @@ Writable.prototype._destroy = function (err, cb) {
   this.end();
   cb(err);
 };
-/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(9), __webpack_require__(287).setImmediate, __webpack_require__(12)))
+/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(9), __webpack_require__(288).setImmediate, __webpack_require__(13)))
 
 /***/ }),
 /* 61 */
@@ -18582,7 +18591,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 var _ = __webpack_require__(0);
 var events_1 = __webpack_require__(15);
 var common_1 = __webpack_require__(1);
-var server = __webpack_require__(241);
+var server = __webpack_require__(242);
 var connect = server.connect;
 var disconnect = server.disconnect;
 var getServerInfo = server.getServerInfo;
@@ -18590,33 +18599,33 @@ var getFee = server.getFee;
 var isConnected = server.isConnected;
 var getLedgerVersion = server.getLedgerVersion;
 var transaction_1 = __webpack_require__(71);
-var transactions_1 = __webpack_require__(253);
-var trustlines_1 = __webpack_require__(298);
-var balances_1 = __webpack_require__(300);
-var balance_sheet_1 = __webpack_require__(301);
-var pathfind_1 = __webpack_require__(302);
-var orders_1 = __webpack_require__(304);
-var orderbook_1 = __webpack_require__(306);
-var settings_1 = __webpack_require__(308);
-var account_info_1 = __webpack_require__(309);
-var account_by_name_1 = __webpack_require__(310);
-var account_issues_1 = __webpack_require__(311);
-var account_invoices_1 = __webpack_require__(313);
-var payment_1 = __webpack_require__(314);
-var trustline_1 = __webpack_require__(315);
-var order_1 = __webpack_require__(316);
-var ordercancellation_1 = __webpack_require__(317);
-var settings_2 = __webpack_require__(318);
-var issue_set_1 = __webpack_require__(319);
-var sign_1 = __webpack_require__(320);
-var combine_1 = __webpack_require__(321);
-var submit_1 = __webpack_require__(322);
-var generate_address_1 = __webpack_require__(323);
-var address_fromSecret_1 = __webpack_require__(324);
-var ledgerhash_1 = __webpack_require__(325);
-var ledger_1 = __webpack_require__(326);
+var transactions_1 = __webpack_require__(254);
+var trustlines_1 = __webpack_require__(299);
+var balances_1 = __webpack_require__(301);
+var balance_sheet_1 = __webpack_require__(302);
+var pathfind_1 = __webpack_require__(303);
+var orders_1 = __webpack_require__(305);
+var orderbook_1 = __webpack_require__(307);
+var settings_1 = __webpack_require__(309);
+var account_info_1 = __webpack_require__(310);
+var nickname_1 = __webpack_require__(311);
+var issues_1 = __webpack_require__(312);
+var account_invoices_1 = __webpack_require__(314);
+var payment_1 = __webpack_require__(315);
+var trustline_1 = __webpack_require__(316);
+var order_1 = __webpack_require__(317);
+var ordercancellation_1 = __webpack_require__(318);
+var settings_2 = __webpack_require__(319);
+var issue_set_1 = __webpack_require__(320);
+var sign_1 = __webpack_require__(321);
+var combine_1 = __webpack_require__(322);
+var submit_1 = __webpack_require__(323);
+var generate_address_1 = __webpack_require__(324);
+var address_fromSecret_1 = __webpack_require__(325);
+var ledgerhash_1 = __webpack_require__(326);
+var ledger_1 = __webpack_require__(327);
 var rangeset_1 = __webpack_require__(70);
-var ledgerUtils = __webpack_require__(14);
+var ledgerUtils = __webpack_require__(11);
 var schemaValidator = __webpack_require__(63);
 // prevent access to non-validated ledger versions
 var RestrictedConnection = /** @class */ (function (_super) {
@@ -18657,8 +18666,8 @@ var CallAPI = /** @class */ (function (_super) {
         _this.getOrderbook = orderbook_1.default;
         _this.getSettings = settings_1.default;
         _this.getAccountInfo = account_info_1.default;
-        _this.getAccountByName = account_by_name_1.default;
-        _this.getAccountIssues = account_issues_1.default;
+        _this.getAccountByName = nickname_1.default;
+        _this.getAccountIssues = issues_1.default;
         _this.getAccountInvoices = account_invoices_1.default;
         _this.getLedger = ledger_1.default;
         _this.prepareIssueSet = issue_set_1.default;
@@ -18880,7 +18889,8 @@ function loadSchemas() {
         __webpack_require__(225),
         __webpack_require__(226),
         __webpack_require__(227),
-        __webpack_require__(228)
+        __webpack_require__(228),
+        __webpack_require__(229)
     ];
     var titles = schemas.map(function (schema) { return schema.title; });
     var duplicates = _.keys(_.pickBy(_.countBy(titles), function (count) { return count > 1; }));
@@ -18927,7 +18937,7 @@ exports.schemaValidate = schemaValidate;
 "use strict";
 
 
-var utils = __webpack_require__(13);
+var utils = __webpack_require__(14);
 var rotr32 = utils.rotr32;
 
 function ft_1(s, x, y, z) {
@@ -18983,7 +18993,7 @@ exports.g1_256 = g1_256;
 "use strict";
 
 
-var utils = __webpack_require__(13);
+var utils = __webpack_require__(14);
 var common = __webpack_require__(32);
 var shaCommon = __webpack_require__(64);
 var assert = __webpack_require__(31);
@@ -19095,7 +19105,7 @@ SHA256.prototype._digest = function digest(enc) {
 "use strict";
 
 
-var utils = __webpack_require__(13);
+var utils = __webpack_require__(14);
 var common = __webpack_require__(32);
 var assert = __webpack_require__(31);
 
@@ -19648,7 +19658,7 @@ exports.default = RangeSet;
 
 Object.defineProperty(exports, "__esModule", { value: true });
 var _ = __webpack_require__(0);
-var utils = __webpack_require__(14);
+var utils = __webpack_require__(11);
 var transaction_1 = __webpack_require__(50);
 var common_1 = __webpack_require__(1);
 function attachTransactionDate(connection, tx) {
@@ -25108,10 +25118,10 @@ module.exports = {
 "use strict";
 
 var inherits = __webpack_require__(2)
-var MD5 = __webpack_require__(267)
-var RIPEMD160 = __webpack_require__(276)
-var sha = __webpack_require__(277)
-var Base = __webpack_require__(282)
+var MD5 = __webpack_require__(268)
+var RIPEMD160 = __webpack_require__(277)
+var sha = __webpack_require__(278)
+var Base = __webpack_require__(283)
 
 function Hash (hash) {
   Base.call(this, 'digest')
@@ -25144,8 +25154,8 @@ module.exports = function createHash (alg) {
 
 "use strict";
 
-var Buffer = __webpack_require__(11).Buffer
-var Transform = __webpack_require__(268).Transform
+var Buffer = __webpack_require__(12).Buffer
+var Transform = __webpack_require__(269).Transform
 var inherits = __webpack_require__(2)
 
 function throwIfNotStringOrBuffer (val, prefix) {
@@ -25304,7 +25314,7 @@ function _isUint8Array(obj) {
 /*<replacement>*/
 
 
-var debugUtil = __webpack_require__(269);
+var debugUtil = __webpack_require__(270);
 
 var debug;
 
@@ -25316,7 +25326,7 @@ if (debugUtil && debugUtil.debuglog) {
 /*</replacement>*/
 
 
-var BufferList = __webpack_require__(270);
+var BufferList = __webpack_require__(271);
 
 var destroyImpl = __webpack_require__(82);
 
@@ -26253,7 +26263,7 @@ Readable.prototype.wrap = function (stream) {
 if (typeof Symbol === 'function') {
   Readable.prototype[Symbol.asyncIterator] = function () {
     if (createReadableStreamAsyncIterator === undefined) {
-      createReadableStreamAsyncIterator = __webpack_require__(272);
+      createReadableStreamAsyncIterator = __webpack_require__(273);
     }
 
     return createReadableStreamAsyncIterator(this);
@@ -26355,7 +26365,7 @@ function endReadableNT(state, stream) {
 if (typeof Symbol === 'function') {
   Readable.from = function (iterable, opts) {
     if (from === undefined) {
-      from = __webpack_require__(273);
+      from = __webpack_require__(274);
     }
 
     return from(Readable, iterable, opts);
@@ -26369,7 +26379,7 @@ function indexOf(xs, x) {
 
   return -1;
 }
-/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(12), __webpack_require__(9)))
+/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(13), __webpack_require__(9)))
 
 /***/ }),
 /* 81 */
@@ -27225,7 +27235,7 @@ Writable.prototype._undestroy = destroyImpl.undestroy;
 Writable.prototype._destroy = function (err, cb) {
   cb(err);
 };
-/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(12), __webpack_require__(9)))
+/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(13), __webpack_require__(9)))
 
 /***/ }),
 /* 85 */
@@ -27299,7 +27309,7 @@ function config (name) {
   return String(val).toLowerCase() === 'true';
 }
 
-/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(12)))
+/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(13)))
 
 /***/ }),
 /* 86 */
@@ -27522,7 +27532,7 @@ function done(stream, er, data) {
 
 var inherits = __webpack_require__(2)
 var Hash = __webpack_require__(28)
-var Buffer = __webpack_require__(11).Buffer
+var Buffer = __webpack_require__(12).Buffer
 
 var K = [
   0x428A2F98, 0x71374491, 0xB5C0FBCF, 0xE9B5DBA5,
@@ -27655,7 +27665,7 @@ module.exports = Sha256
 
 var inherits = __webpack_require__(2)
 var Hash = __webpack_require__(28)
-var Buffer = __webpack_require__(11).Buffer
+var Buffer = __webpack_require__(12).Buffer
 
 var K = [
   0x428a2f98, 0xd728ae22, 0x71374491, 0x23ef65cd,
@@ -27991,7 +28001,7 @@ util.inherits = __webpack_require__(2);
 /*</replacement>*/
 
 /*<replacement>*/
-var debugUtil = __webpack_require__(284);
+var debugUtil = __webpack_require__(285);
 var debug = void 0;
 if (debugUtil && debugUtil.debuglog) {
   debug = debugUtil.debuglog('stream');
@@ -28000,7 +28010,7 @@ if (debugUtil && debugUtil.debuglog) {
 }
 /*</replacement>*/
 
-var BufferList = __webpack_require__(285);
+var BufferList = __webpack_require__(286);
 var destroyImpl = __webpack_require__(91);
 var StringDecoder;
 
@@ -28939,7 +28949,7 @@ function indexOf(xs, x) {
   }
   return -1;
 }
-/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(12), __webpack_require__(9)))
+/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(13), __webpack_require__(9)))
 
 /***/ }),
 /* 90 */
@@ -29767,7 +29777,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 var api_1 = __webpack_require__(61);
 exports.CallAPI = api_1.CallAPI;
 // Broadcast api is experimental
-var broadcast_1 = __webpack_require__(328);
+var broadcast_1 = __webpack_require__(329);
 exports.CallAPIBroadcast = broadcast_1.CallAPIBroadcast;
 
 
@@ -29917,6 +29927,7 @@ exports.getTransactions = _.partial(validateOptions, 'getTransactionsParameters'
 exports.getSettings = _.partial(validateOptions, 'getSettingsParameters');
 exports.getAccountInfo = _.partial(validateOptions, 'getAccountInfoParameters');
 exports.getTrustlines = _.partial(validateOptions, 'getTrustlinesParameters');
+exports.getIssues = _.partial(validateOptions, 'getIssuesParameters');
 exports.getBalances = _.partial(validateOptions, 'getBalancesParameters');
 exports.getBalanceSheet = _.partial(validateOptions, 'getBalanceSheetParameters');
 exports.getOrders = _.partial(validateOptions, 'getOrdersParameters');
@@ -30920,7 +30931,7 @@ module.exports = Validator;
 
 }(this));
 
-/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(46)(module), __webpack_require__(12)))
+/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(46)(module), __webpack_require__(13)))
 
 /***/ }),
 /* 108 */
@@ -31987,7 +31998,7 @@ exports.sha512 = __webpack_require__(66);
 "use strict";
 
 
-var utils = __webpack_require__(13);
+var utils = __webpack_require__(14);
 var common = __webpack_require__(32);
 var shaCommon = __webpack_require__(64);
 
@@ -32068,7 +32079,7 @@ SHA1.prototype._digest = function digest(enc) {
 "use strict";
 
 
-var utils = __webpack_require__(13);
+var utils = __webpack_require__(14);
 var SHA256 = __webpack_require__(65);
 
 function SHA224() {
@@ -32105,7 +32116,7 @@ SHA224.prototype._digest = function digest(enc) {
 "use strict";
 
 
-var utils = __webpack_require__(13);
+var utils = __webpack_require__(14);
 
 var SHA512 = __webpack_require__(66);
 
@@ -32147,7 +32158,7 @@ SHA384.prototype._digest = function digest(enc) {
 "use strict";
 
 
-var utils = __webpack_require__(13);
+var utils = __webpack_require__(14);
 var common = __webpack_require__(32);
 
 var rotl32 = utils.rotl32;
@@ -32300,7 +32311,7 @@ var sh = [
 "use strict";
 
 
-var utils = __webpack_require__(13);
+var utils = __webpack_require__(14);
 var assert = __webpack_require__(31);
 
 function Hmac(hash, key, enc) {
@@ -37343,70 +37354,76 @@ module.exports = {"$schema":"http://json-schema.org/draft-04/schema#","title":"g
 /* 218 */
 /***/ (function(module, exports) {
 
-module.exports = {"$schema":"http://json-schema.org/draft-04/schema#","title":"preparePaymentParameters","type":"object","properties":{"address":{"$ref":"address","description":"The address of the account that is creating the transaction."},"payment":{"$ref":"payment","description":"The specification of the payment to prepare."},"instructions":{"$ref":"instructions"}},"additionalProperties":true,"required":["address","payment"]}
+module.exports = {"$schema":"http://json-schema.org/draft-04/schema#","title":"getIssuesParameters","description":"Parameters for getIssues","type":"object","properties":{"address":{"$ref":"address","description":"The address of the account to get issues for."},"options":{"description":"Options to filter and determine which issue set to return.","properties":{"invoice":{"$ref":"boolean","description":"Only return invoice issues."},"limit":{"type":"integer","minimum":1,"description":"Return at most this many trustlines."},"ledgerVersion":{"$ref":"ledgerVersion","description":"Return trustlines as they were in this historical ledger version."}},"additionalProperties":true}},"additionalProperties":true,"required":["address"]}
 
 /***/ }),
 /* 219 */
 /***/ (function(module, exports) {
 
-module.exports = {"$schema":"http://json-schema.org/draft-04/schema#","title":"prepareOrderParameters","type":"object","properties":{"address":{"$ref":"address","description":"The address of the account that is creating the transaction."},"order":{"$ref":"order","description":"The specification of the order to prepare."},"instructions":{"$ref":"instructions"}},"additionalProperties":true,"required":["address","order"]}
+module.exports = {"$schema":"http://json-schema.org/draft-04/schema#","title":"preparePaymentParameters","type":"object","properties":{"address":{"$ref":"address","description":"The address of the account that is creating the transaction."},"payment":{"$ref":"payment","description":"The specification of the payment to prepare."},"instructions":{"$ref":"instructions"}},"additionalProperties":true,"required":["address","payment"]}
 
 /***/ }),
 /* 220 */
 /***/ (function(module, exports) {
 
-module.exports = {"$schema":"http://json-schema.org/draft-04/schema#","title":"prepareTrustlineParameters","type":"object","properties":{"address":{"$ref":"address","description":"The address of the account that is creating the transaction."},"trustline":{"$ref":"trustline","description":"The specification of the trustline to prepare."},"instructions":{"$ref":"instructions"}},"additionalProperties":true,"required":["address","trustline"]}
+module.exports = {"$schema":"http://json-schema.org/draft-04/schema#","title":"prepareOrderParameters","type":"object","properties":{"address":{"$ref":"address","description":"The address of the account that is creating the transaction."},"order":{"$ref":"order","description":"The specification of the order to prepare."},"instructions":{"$ref":"instructions"}},"additionalProperties":true,"required":["address","order"]}
 
 /***/ }),
 /* 221 */
 /***/ (function(module, exports) {
 
-module.exports = {"$schema":"http://json-schema.org/draft-04/schema#","title":"prepareOrderCancellationParameters","type":"object","properties":{"address":{"$ref":"address","description":"The address of the account that is creating the transaction."},"orderCancellation":{"$ref":"orderCancellation","description":"The specification of the order cancellation to prepare."},"instructions":{"$ref":"instructions"}},"additionalProperties":true,"required":["address","orderCancellation"]}
+module.exports = {"$schema":"http://json-schema.org/draft-04/schema#","title":"prepareTrustlineParameters","type":"object","properties":{"address":{"$ref":"address","description":"The address of the account that is creating the transaction."},"trustline":{"$ref":"trustline","description":"The specification of the trustline to prepare."},"instructions":{"$ref":"instructions"}},"additionalProperties":true,"required":["address","trustline"]}
 
 /***/ }),
 /* 222 */
 /***/ (function(module, exports) {
 
-module.exports = {"$schema":"http://json-schema.org/draft-04/schema#","title":"prepareSettingsParameters","type":"object","properties":{"address":{"$ref":"address","description":"The address of the account that is creating the transaction."},"settings":{"$ref":"settings","description":"The specification of the settings to prepare."},"instructions":{"$ref":"instructions"}},"additionalProperties":true,"required":["address","settings"]}
+module.exports = {"$schema":"http://json-schema.org/draft-04/schema#","title":"prepareOrderCancellationParameters","type":"object","properties":{"address":{"$ref":"address","description":"The address of the account that is creating the transaction."},"orderCancellation":{"$ref":"orderCancellation","description":"The specification of the order cancellation to prepare."},"instructions":{"$ref":"instructions"}},"additionalProperties":true,"required":["address","orderCancellation"]}
 
 /***/ }),
 /* 223 */
 /***/ (function(module, exports) {
 
-module.exports = {"$schema":"http://json-schema.org/draft-04/schema#","title":"prepareIssueSetParameters","type":"object","properties":{"address":{"$ref":"address","description":"The address of the account that is creating the transaction."},"issueset":{"$ref":"issueSet","description":"The specification of the issueSet to prepare."},"instructions":{"$ref":"instructions"}},"additionalProperties":true,"required":["address","issueset"]}
+module.exports = {"$schema":"http://json-schema.org/draft-04/schema#","title":"prepareSettingsParameters","type":"object","properties":{"address":{"$ref":"address","description":"The address of the account that is creating the transaction."},"settings":{"$ref":"settings","description":"The specification of the settings to prepare."},"instructions":{"$ref":"instructions"}},"additionalProperties":true,"required":["address","settings"]}
 
 /***/ }),
 /* 224 */
 /***/ (function(module, exports) {
 
-module.exports = {"$schema":"http://json-schema.org/draft-04/schema#","title":"computeLedgerHashParameters","type":"object","properties":{"ledger":{"$ref":"getLedger","description":"The ledger header to hash."}},"additionalProperties":true,"required":["ledger"]}
+module.exports = {"$schema":"http://json-schema.org/draft-04/schema#","title":"prepareIssueSetParameters","type":"object","properties":{"address":{"$ref":"address","description":"The address of the account that is creating the transaction."},"issueset":{"$ref":"issueSet","description":"The specification of the issueSet to prepare."},"instructions":{"$ref":"instructions"}},"additionalProperties":true,"required":["address","issueset"]}
 
 /***/ }),
 /* 225 */
 /***/ (function(module, exports) {
 
-module.exports = {"$schema":"http://json-schema.org/draft-04/schema#","title":"signParameters","type":"object","properties":{"txJSON":{"type":"string","description":"Transaction represented as a JSON string in called format."},"secret":{"type":"string","format":"secret","description":"The secret of the account that is initiating the transaction."},"options":{"type":"object","description":"Options that control the type of signature that will be generated.","properties":{"signAs":{"$ref":"address","description":"The account that the signature should count for in multisigning."}},"additionalProperties":true}},"additionalProperties":true,"required":["txJSON","secret"]}
+module.exports = {"$schema":"http://json-schema.org/draft-04/schema#","title":"computeLedgerHashParameters","type":"object","properties":{"ledger":{"$ref":"getLedger","description":"The ledger header to hash."}},"additionalProperties":true,"required":["ledger"]}
 
 /***/ }),
 /* 226 */
 /***/ (function(module, exports) {
 
-module.exports = {"$schema":"http://json-schema.org/draft-04/schema#","title":"submitParameters","type":"object","properties":{"signedTransaction":{"$ref":"blob","description":"A signed transaction as returned by [sign](#sign)."}},"additionalProperties":true,"required":["signedTransaction"]}
+module.exports = {"$schema":"http://json-schema.org/draft-04/schema#","title":"signParameters","type":"object","properties":{"txJSON":{"type":"string","description":"Transaction represented as a JSON string in called format."},"secret":{"type":"string","format":"secret","description":"The secret of the account that is initiating the transaction."},"options":{"type":"object","description":"Options that control the type of signature that will be generated.","properties":{"signAs":{"$ref":"address","description":"The account that the signature should count for in multisigning."}},"additionalProperties":true}},"additionalProperties":true,"required":["txJSON","secret"]}
 
 /***/ }),
 /* 227 */
 /***/ (function(module, exports) {
 
-module.exports = {"$schema":"http://json-schema.org/draft-04/schema#","title":"generateAddressParameters","type":"object","properties":{"options":{"type":"object","description":"Options to control how the address and secret are generated.","properties":{"entropy":{"type":"array","items":{"type":"integer","minimum":0,"maximum":255},"description":"The entropy to use to generate the seed."},"algorithm":{"type":"string","enum":["ecdsa-secp256k1","ed25519"],"description":"The digital signature algorithm to generate an address for. Can be `ecdsa-secp256k1` (default) or `ed25519`."}},"additionalProperties":true}},"additionalProperties":true}
+module.exports = {"$schema":"http://json-schema.org/draft-04/schema#","title":"submitParameters","type":"object","properties":{"signedTransaction":{"$ref":"blob","description":"A signed transaction as returned by [sign](#sign)."}},"additionalProperties":true,"required":["signedTransaction"]}
 
 /***/ }),
 /* 228 */
 /***/ (function(module, exports) {
 
-module.exports = {"$schema":"http://json-schema.org/draft-04/schema#","title":"combineParameters","type":"object","properties":{"signedTransactions":{"type":"array","description":"An array of signed transactions (from the output of [sign](#sign)) to combine.","items":{"type":"string","pattern":"^[A-F0-9]+$","description":"A single-signed transaction represented as an uppercase hexadecimal string (from the output of [sign](#sign))"},"minLength":1}},"additionalProperties":true,"required":["signedTransactions"]}
+module.exports = {"$schema":"http://json-schema.org/draft-04/schema#","title":"generateAddressParameters","type":"object","properties":{"options":{"type":"object","description":"Options to control how the address and secret are generated.","properties":{"entropy":{"type":"array","items":{"type":"integer","minimum":0,"maximum":255},"description":"The entropy to use to generate the seed."},"algorithm":{"type":"string","enum":["ecdsa-secp256k1","ed25519"],"description":"The digital signature algorithm to generate an address for. Can be `ecdsa-secp256k1` (default) or `ed25519`."}},"additionalProperties":true}},"additionalProperties":true}
 
 /***/ }),
 /* 229 */
+/***/ (function(module, exports) {
+
+module.exports = {"$schema":"http://json-schema.org/draft-04/schema#","title":"combineParameters","type":"object","properties":{"signedTransactions":{"type":"array","description":"An array of signed transactions (from the output of [sign](#sign)) to combine.","items":{"type":"string","pattern":"^[A-F0-9]+$","description":"A single-signed transaction represented as an uppercase hexadecimal string (from the output of [sign](#sign))"},"minLength":1}},"additionalProperties":true,"required":["signedTransactions"]}
+
+/***/ }),
+/* 230 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -37456,7 +37473,7 @@ exports.getFee = getFee;
 
 
 /***/ }),
-/* 230 */
+/* 231 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -37475,7 +37492,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 var _ = __webpack_require__(0);
 var events_1 = __webpack_require__(15);
 var url_1 = __webpack_require__(29);
-var WebSocket = __webpack_require__(233);
+var WebSocket = __webpack_require__(234);
 var rangeset_1 = __webpack_require__(70);
 var errors_1 = __webpack_require__(36);
 function isStreamMessageType(type) {
@@ -37718,7 +37735,7 @@ var Connection = /** @class */ (function (_super) {
             var proxyOptions = _.assign({}, parsedProxyURL, proxyOverrides);
             var HttpsProxyAgent = void 0;
             try {
-                HttpsProxyAgent = __webpack_require__(234);
+                HttpsProxyAgent = __webpack_require__(235);
             }
             catch (error) {
                 throw new Error('"proxy" option is not supported in the browser');
@@ -37919,7 +37936,7 @@ exports.default = Connection;
 /* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(5).Buffer))
 
 /***/ }),
-/* 231 */
+/* 232 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -38078,7 +38095,7 @@ function fromByteArray (uint8) {
 
 
 /***/ }),
-/* 232 */
+/* 233 */
 /***/ (function(module, exports) {
 
 exports.read = function (buffer, offset, isLE, mLen, nBytes) {
@@ -38168,7 +38185,7 @@ exports.write = function (buffer, value, offset, isLE, mLen, nBytes) {
 
 
 /***/ }),
-/* 233 */
+/* 234 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -38233,7 +38250,7 @@ module.exports = WSWrapper;
 
 
 /***/ }),
-/* 234 */
+/* 235 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -38241,7 +38258,7 @@ module.exports = WSWrapper;
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
-const agent_1 = __importDefault(__webpack_require__(235));
+const agent_1 = __importDefault(__webpack_require__(236));
 function createHttpsProxyAgent(opts) {
     return new agent_1.default(opts);
 }
@@ -38253,7 +38270,7 @@ module.exports = createHttpsProxyAgent;
 //# sourceMappingURL=index.js.map
 
 /***/ }),
-/* 235 */
+/* 236 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -38276,8 +38293,8 @@ const tls_1 = __importDefault(__webpack_require__(!(function webpackMissingModul
 const url_1 = __importDefault(__webpack_require__(29));
 const assert_1 = __importDefault(__webpack_require__(3));
 const debug_1 = __importDefault(__webpack_require__(49));
-const agent_base_1 = __webpack_require__(238);
-const parse_proxy_response_1 = __importDefault(__webpack_require__(240));
+const agent_base_1 = __webpack_require__(239);
+const parse_proxy_response_1 = __importDefault(__webpack_require__(241));
 const debug = debug_1.default('https-proxy-agent:agent');
 /**
  * The `HttpsProxyAgent` implements an HTTP Agent subclass that connects to
@@ -38440,7 +38457,7 @@ function omit(obj, ...keys) {
 /* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(5).Buffer))
 
 /***/ }),
-/* 236 */
+/* 237 */
 /***/ (function(module, exports, __webpack_require__) {
 
 
@@ -38456,7 +38473,7 @@ function setup(env) {
 	createDebug.disable = disable;
 	createDebug.enable = enable;
 	createDebug.enabled = enabled;
-	createDebug.humanize = __webpack_require__(237);
+	createDebug.humanize = __webpack_require__(238);
 
 	Object.keys(env).forEach(key => {
 		createDebug[key] = env[key];
@@ -38712,7 +38729,7 @@ module.exports = setup;
 
 
 /***/ }),
-/* 237 */
+/* 238 */
 /***/ (function(module, exports) {
 
 /**
@@ -38880,7 +38897,7 @@ function plural(ms, msAbs, n, name) {
 
 
 /***/ }),
-/* 238 */
+/* 239 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -38890,7 +38907,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 const events_1 = __webpack_require__(15);
 const debug_1 = __importDefault(__webpack_require__(49));
-const promisify_1 = __importDefault(__webpack_require__(239));
+const promisify_1 = __importDefault(__webpack_require__(240));
 const debug = debug_1.default('agent-base');
 function isAgent(v) {
     return Boolean(v) && typeof v.addRequest === 'function';
@@ -39087,7 +39104,7 @@ module.exports = createAgent;
 //# sourceMappingURL=index.js.map
 
 /***/ }),
-/* 239 */
+/* 240 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -39111,7 +39128,7 @@ exports.default = promisify;
 //# sourceMappingURL=promisify.js.map
 
 /***/ }),
-/* 240 */
+/* 241 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -39184,7 +39201,7 @@ exports.default = parseProxyResponse;
 /* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(5).Buffer))
 
 /***/ }),
-/* 241 */
+/* 242 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -39233,7 +39250,7 @@ exports.formatLedgerClose = formatLedgerClose;
 
 
 /***/ }),
-/* 242 */
+/* 243 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -39244,12 +39261,12 @@ module.exports.parseBalanceChanges =
 module.exports.parseFinalBalances =
   __webpack_require__(72).parseFinalBalances
 module.exports.parseOrderbookChanges =
-  __webpack_require__(243).parseOrderbookChanges
+  __webpack_require__(244).parseOrderbookChanges
 module.exports.getAffectedAccounts = __webpack_require__(39).getAffectedAccounts
 
 
 /***/ }),
-/* 243 */
+/* 244 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -39258,7 +39275,7 @@ var _ = __webpack_require__(0)
 var utils = __webpack_require__(39)
 var GlobalBigNumber = __webpack_require__(6)
 var BigNumber = GlobalBigNumber.another({DECIMAL_PLACES: 40})
-var parseQuality = __webpack_require__(244)
+var parseQuality = __webpack_require__(245)
 
 var lsfSell = 0x00020000  
 
@@ -39401,7 +39418,7 @@ exports.parseOrderbookChanges = function parseOrderbookChanges(metadata) {
 
 
 /***/ }),
-/* 244 */
+/* 245 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -39434,7 +39451,7 @@ module.exports = parseQuality
 
 
 /***/ }),
-/* 245 */
+/* 246 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -39482,7 +39499,7 @@ exports.default = parsePayment;
 
 
 /***/ }),
-/* 246 */
+/* 247 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -39518,7 +39535,7 @@ exports.default = parseTrustline;
 
 
 /***/ }),
-/* 247 */
+/* 248 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -39545,7 +39562,7 @@ exports.default = parseIssueSet;
 
 
 /***/ }),
-/* 248 */
+/* 249 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -39578,7 +39595,7 @@ exports.default = parseOrder;
 
 
 /***/ }),
-/* 249 */
+/* 250 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -39595,7 +39612,7 @@ exports.default = parseOrderCancellation;
 
 
 /***/ }),
-/* 250 */
+/* 251 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -39657,7 +39674,7 @@ exports.default = parseSettings;
 
 
 /***/ }),
-/* 251 */
+/* 252 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -39678,7 +39695,7 @@ exports.default = parseFeeUpdate;
 
 
 /***/ }),
-/* 252 */
+/* 253 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -39693,7 +39710,7 @@ exports.default = parseAmendment;
 
 
 /***/ }),
-/* 253 */
+/* 254 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -39702,7 +39719,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 var _ = __webpack_require__(0);
 var binary = __webpack_require__(40);
 var computeTransactionHash = __webpack_require__(44).computeTransactionHash;
-var utils = __webpack_require__(14);
+var utils = __webpack_require__(11);
 var transaction_1 = __webpack_require__(50);
 var transaction_2 = __webpack_require__(71);
 var common_1 = __webpack_require__(1);
@@ -39818,7 +39835,7 @@ function getTransactionsInternal(connection, address, options) {
     // const format = _.partial(formatResponse, connection, options)
     // return utils.getRecursive(getter, options.limit).then(format);
     // TODO format used or not
-    return utils.getRecursive(getter, options.limit, options.marker);
+    return utils.getRecursive(getter, options.limit);
 }
 function getTransactions(address, options) {
     var _this = this;
@@ -39841,7 +39858,7 @@ exports.default = getTransactions;
 
 
 /***/ }),
-/* 254 */
+/* 255 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -39851,10 +39868,10 @@ Field = enums.Field;
 var types = __webpack_require__(20);
 var binary = __webpack_require__(56);var _require =
 __webpack_require__(93),ShaMap = _require.ShaMap;
-var ledgerHashes = __webpack_require__(294);
+var ledgerHashes = __webpack_require__(295);
 var hashes = __webpack_require__(42);
-var quality = __webpack_require__(295);
-var signing = __webpack_require__(296);var _require2 =
+var quality = __webpack_require__(296);
+var signing = __webpack_require__(297);var _require2 =
 __webpack_require__(33),HashPrefix = _require2.HashPrefix;
 
 
@@ -39871,13 +39888,13 @@ module.exports = _.assign({
 types);
 
 /***/ }),
-/* 255 */
+/* 256 */
 /***/ (function(module, exports) {
 
 module.exports = {"TYPES":{"Validation":10003,"Done":-1,"Hash128":4,"Blob":7,"AccountID":8,"Amount":6,"Hash256":5,"UInt8":16,"Vector256":19,"STObject":14,"Unknown":-2,"Transaction":10001,"Hash160":17,"PathSet":18,"LedgerEntry":10002,"UInt16":1,"NotPresent":0,"UInt64":3,"UInt32":2,"STArray":15},"LEDGER_ENTRY_TYPES":{"Any":-3,"Child":-2,"Invalid":-1,"AccountRoot":97,"DirectoryNode":100,"CallState":114,"Ticket":84,"SignerList":83,"Offer":111,"LedgerHashes":104,"Amendments":102,"FeeSettings":115,"Escrow":117,"PayChannel":120,"DepositPreauth":112,"Check":67,"NickName":110,"Contract":99,"GeneratorMap":103,"IssueRoot":105,"FeeRoot":70,"InvoiceRoot":118},"FIELDS":[["Generic",{"nth":0,"isVLEncoded":false,"isSerialized":false,"isSigningField":false,"type":"Unknown"}],["Invalid",{"nth":-1,"isVLEncoded":false,"isSerialized":false,"isSigningField":false,"type":"Unknown"}],["LedgerEntryType",{"nth":1,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt16"}],["TransactionType",{"nth":2,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt16"}],["SignerWeight",{"nth":3,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt16"}],["Flags",{"nth":2,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt32"}],["SourceTag",{"nth":3,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt32"}],["Sequence",{"nth":4,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt32"}],["PreviousTxnLgrSeq",{"nth":5,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt32"}],["LedgerSequence",{"nth":6,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt32"}],["CloseTime",{"nth":7,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt32"}],["ParentCloseTime",{"nth":8,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt32"}],["SigningTime",{"nth":9,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt32"}],["Expiration",{"nth":10,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt32"}],["TransferRate",{"nth":11,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt32"}],["WalletSize",{"nth":12,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt32"}],["OwnerCount",{"nth":13,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt32"}],["DestinationTag",{"nth":14,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt32"}],["HighQualityIn",{"nth":16,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt32"}],["HighQualityOut",{"nth":17,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt32"}],["LowQualityIn",{"nth":18,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt32"}],["LowQualityOut",{"nth":19,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt32"}],["QualityIn",{"nth":20,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt32"}],["QualityOut",{"nth":21,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt32"}],["StampEscrow",{"nth":22,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt32"}],["BondAmount",{"nth":23,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt32"}],["LoadFee",{"nth":24,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt32"}],["OfferSequence",{"nth":25,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt32"}],["FirstLedgerSequence",{"nth":26,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt32"}],["LastLedgerSequence",{"nth":27,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt32"}],["TransactionIndex",{"nth":28,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt32"}],["OperationLimit",{"nth":29,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt32"}],["ReferenceFeeUnits",{"nth":30,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt32"}],["ReserveBase",{"nth":31,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt32"}],["ReserveIncrement",{"nth":32,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt32"}],["SetFlag",{"nth":33,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt32"}],["ClearFlag",{"nth":34,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt32"}],["SignerQuorum",{"nth":35,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt32"}],["CancelAfter",{"nth":36,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt32"}],["FinishAfter",{"nth":37,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt32"}],["SignerListID",{"nth":38,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt32"}],["SettleDelay",{"nth":39,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt32"}],["IndexNext",{"nth":1,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt64"}],["IndexPrevious",{"nth":2,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt64"}],["BookNode",{"nth":3,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt64"}],["OwnerNode",{"nth":4,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt64"}],["BaseFee",{"nth":5,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt64"}],["ExchangeRate",{"nth":6,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt64"}],["LowNode",{"nth":7,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt64"}],["HighNode",{"nth":8,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt64"}],["DestinationNode",{"nth":9,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt64"}],["Fans",{"nth":10,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt64"}],["EmailHash",{"nth":1,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"Hash128"}],["LedgerHash",{"nth":1,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"Hash256"}],["ParentHash",{"nth":2,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"Hash256"}],["TransactionHash",{"nth":3,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"Hash256"}],["AccountHash",{"nth":4,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"Hash256"}],["PreviousTxnID",{"nth":5,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"Hash256"}],["LedgerIndex",{"nth":6,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"Hash256"}],["WalletLocator",{"nth":7,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"Hash256"}],["RootIndex",{"nth":8,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"Hash256"}],["AccountTxnID",{"nth":9,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"Hash256"}],["BookDirectory",{"nth":16,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"Hash256"}],["InvoiceID",{"nth":17,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"Hash256"}],["Nickname",{"nth":18,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"Hash256"}],["Amendment",{"nth":19,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"Hash256"}],["TicketID",{"nth":20,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"Hash256"}],["Digest",{"nth":21,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"Hash256"}],["hash",{"nth":257,"isVLEncoded":false,"isSerialized":false,"isSigningField":false,"type":"Hash256"}],["index",{"nth":258,"isVLEncoded":false,"isSerialized":false,"isSigningField":false,"type":"Hash256"}],["Amount",{"nth":1,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"Amount"}],["Balance",{"nth":2,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"Amount"}],["LimitAmount",{"nth":3,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"Amount"}],["TakerPays",{"nth":4,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"Amount"}],["TakerGets",{"nth":5,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"Amount"}],["LowLimit",{"nth":6,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"Amount"}],["HighLimit",{"nth":7,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"Amount"}],["Fee",{"nth":8,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"Amount"}],["SendMax",{"nth":9,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"Amount"}],["DeliverMin",{"nth":10,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"Amount"}],["Total",{"nth":11,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"Amount"}],["Issued",{"nth":12,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"Amount"}],["Freezed",{"nth":12,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"Amount"}],["MinimumOffer",{"nth":16,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"Amount"}],["CallEscrow",{"nth":17,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"Amount"}],["DeliveredAmount",{"nth":18,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"Amount"}],["taker_gets_funded",{"nth":258,"isVLEncoded":false,"isSerialized":false,"isSigningField":false,"type":"Amount"}],["taker_pays_funded",{"nth":259,"isVLEncoded":false,"isSerialized":false,"isSigningField":false,"type":"Amount"}],["PublicKey",{"nth":1,"isVLEncoded":true,"isSerialized":true,"isSigningField":true,"type":"Blob"}],["MessageKey",{"nth":2,"isVLEncoded":true,"isSerialized":true,"isSigningField":true,"type":"Blob"}],["SigningPubKey",{"nth":3,"isVLEncoded":true,"isSerialized":true,"isSigningField":true,"type":"Blob"}],["TxnSignature",{"nth":4,"isVLEncoded":true,"isSerialized":true,"isSigningField":false,"type":"Blob"}],["Generator",{"nth":5,"isVLEncoded":true,"isSerialized":true,"isSigningField":true,"type":"Blob"}],["Signature",{"nth":6,"isVLEncoded":true,"isSerialized":true,"isSigningField":false,"type":"Blob"}],["Domain",{"nth":7,"isVLEncoded":true,"isSerialized":true,"isSigningField":true,"type":"Blob"}],["FundCode",{"nth":8,"isVLEncoded":true,"isSerialized":true,"isSigningField":true,"type":"Blob"}],["RemoveCode",{"nth":9,"isVLEncoded":true,"isSerialized":true,"isSigningField":true,"type":"Blob"}],["ExpireCode",{"nth":10,"isVLEncoded":true,"isSerialized":true,"isSigningField":true,"type":"Blob"}],["CreateCode",{"nth":11,"isVLEncoded":true,"isSerialized":true,"isSigningField":true,"type":"Blob"}],["MemoType",{"nth":12,"isVLEncoded":true,"isSerialized":true,"isSigningField":true,"type":"Blob"}],["MemoData",{"nth":13,"isVLEncoded":true,"isSerialized":true,"isSigningField":true,"type":"Blob"}],["MemoFormat",{"nth":14,"isVLEncoded":true,"isSerialized":true,"isSigningField":true,"type":"Blob"}],["Fulfillment",{"nth":16,"isVLEncoded":true,"isSerialized":true,"isSigningField":true,"type":"Blob"}],["Condition",{"nth":17,"isVLEncoded":true,"isSerialized":true,"isSigningField":true,"type":"Blob"}],["MasterSignature",{"nth":18,"isVLEncoded":true,"isSerialized":true,"isSigningField":false,"type":"Blob"}],["NickName",{"nth":19,"isVLEncoded":true,"isSerialized":true,"isSigningField":true,"type":"Blob"}],["Invoice",{"nth":20,"isVLEncoded":true,"isSerialized":true,"isSigningField":true,"type":"Blob"}],["Account",{"nth":1,"isVLEncoded":true,"isSerialized":true,"isSigningField":true,"type":"AccountID"}],["Owner",{"nth":2,"isVLEncoded":true,"isSerialized":true,"isSigningField":true,"type":"AccountID"}],["Destination",{"nth":3,"isVLEncoded":true,"isSerialized":true,"isSigningField":true,"type":"AccountID"}],["Issuer",{"nth":4,"isVLEncoded":true,"isSerialized":true,"isSigningField":true,"type":"AccountID"}],["Authorize",{"nth":5,"isVLEncoded":true,"isSerialized":true,"isSigningField":true,"type":"AccountID"}],["Unauthorize",{"nth":6,"isVLEncoded":true,"isSerialized":true,"isSigningField":true,"type":"AccountID"}],["Target",{"nth":7,"isVLEncoded":true,"isSerialized":true,"isSigningField":true,"type":"AccountID"}],["RegularKey",{"nth":8,"isVLEncoded":true,"isSerialized":true,"isSigningField":true,"type":"AccountID"}],["ObjectEndMarker",{"nth":1,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"STObject"}],["TransactionMetaData",{"nth":2,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"STObject"}],["CreatedNode",{"nth":3,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"STObject"}],["DeletedNode",{"nth":4,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"STObject"}],["ModifiedNode",{"nth":5,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"STObject"}],["PreviousFields",{"nth":6,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"STObject"}],["FinalFields",{"nth":7,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"STObject"}],["NewFields",{"nth":8,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"STObject"}],["TemplateEntry",{"nth":9,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"STObject"}],["Memo",{"nth":10,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"STObject"}],["SignerEntry",{"nth":11,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"STObject"}],["Signer",{"nth":16,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"STObject"}],["Majority",{"nth":18,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"STObject"}],["ArrayEndMarker",{"nth":1,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"STArray"}],["Signers",{"nth":3,"isVLEncoded":false,"isSerialized":true,"isSigningField":false,"type":"STArray"}],["SignerEntries",{"nth":4,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"STArray"}],["Template",{"nth":5,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"STArray"}],["Necessary",{"nth":6,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"STArray"}],["Sufficient",{"nth":7,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"STArray"}],["AffectedNodes",{"nth":8,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"STArray"}],["Memos",{"nth":9,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"STArray"}],["Majorities",{"nth":16,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"STArray"}],["CloseResolution",{"nth":1,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt8"}],["Method",{"nth":2,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt8"}],["TransactionResult",{"nth":3,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt8"}],["TakerPaysCurrency",{"nth":1,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"Hash160"}],["TakerPaysIssuer",{"nth":2,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"Hash160"}],["TakerGetsCurrency",{"nth":3,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"Hash160"}],["TakerGetsIssuer",{"nth":4,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"Hash160"}],["Paths",{"nth":1,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"PathSet"}],["Indexes",{"nth":1,"isVLEncoded":true,"isSerialized":true,"isSigningField":true,"type":"Vector256"}],["Hashes",{"nth":2,"isVLEncoded":true,"isSerialized":true,"isSigningField":true,"type":"Vector256"}],["Amendments",{"nth":3,"isVLEncoded":true,"isSerialized":true,"isSigningField":true,"type":"Vector256"}],["Transaction",{"nth":1,"isVLEncoded":false,"isSerialized":false,"isSigningField":false,"type":"Transaction"}],["LedgerEntry",{"nth":1,"isVLEncoded":false,"isSerialized":false,"isSigningField":false,"type":"LedgerEntry"}],["Validation",{"nth":1,"isVLEncoded":false,"isSerialized":false,"isSigningField":false,"type":"Validation"}],["SignerListID",{"nth":38,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt32"}],["SettleDelay",{"nth":39,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt32"}],["Channel",{"nth":22,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"Hash256"}],["ConsensusHash",{"nth":23,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"Hash256"}],["CheckID",{"nth":24,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"Hash256"}],["TickSize",{"nth":16,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt8"}],["DestinationNode",{"nth":9,"isVLEncoded":false,"isSerialized":true,"isSigningField":true,"type":"UInt64"}]],"TRANSACTION_RESULTS":{"telNO_DST_PARTIAL":-393,"temBAD_SRC_ACCOUNT":-281,"tefPAST_SEQ":-189,"terNO_ACCOUNT":-96,"temREDUNDANT":-275,"tefCREATED":-194,"temDST_IS_SRC":-279,"terRETRY":-99,"temINVALID_FLAG":-276,"temBAD_SEND_CALL_LIMIT":-288,"terNO_LINE":-94,"tefBAD_AUTH":-196,"temBAD_EXPIRATION":-295,"temBAD_SEND_CALL_NO_DIRECT":-286,"temBAD_SEND_CALL_PATHS":-284,"tefBAD_LEDGER":-195,"tefNO_AUTH_REQUIRED":-190,"terOWNERS":-93,"terLAST":-91,"terNO_RIPPLE":-90,"temBAD_FEE":-294,"terPRE_SEQ":-92,"tefMASTER_DISABLED":-187,"temBAD_CURRENCY":-296,"tefDST_TAG_NEEDED":-193,"temBAD_SIGNATURE":-282,"tefFAILURE":-199,"telBAD_PATH_COUNT":-397,"temBAD_TRANSFER_RATE":-280,"tefWRONG_PRIOR":-188,"telBAD_DOMAIN":-398,"temBAD_AMOUNT":-298,"temBAD_AUTH_MASTER":-297,"temBAD_LIMIT":-292,"temBAD_ISSUER":-293,"telBAD_PUBLIC_KEY":-396,"tefBAD_ADD_AUTH":-197,"temBAD_OFFER":-291,"temBAD_SEND_CALL_PARTIAL":-285,"temDST_NEEDED":-278,"tefALREADY":-198,"temUNCERTAIN":-272,"telLOCAL_ERROR":-399,"temREDUNDANT_SEND_MAX":-274,"tefINTERNAL":-191,"temBAD_PATH_LOOP":-289,"tefEXCEPTION":-192,"temRIPPLE_EMPTY":-273,"telINSUF_FEE_P":-394,"temBAD_SEQUENCE":-283,"tefMAX_LEDGER":-186,"terFUNDS_SPENT":-98,"temBAD_SEND_CALL_MAX":-287,"telFAILED_PROCESSING":-395,"terINSUF_FEE_B":-97,"tesSUCCESS":0,"temBAD_PATH":-290,"temMALFORMED":-299,"temUNKNOWN":-271,"temINVALID":-277,"terNO_AUTH":-95,"temBAD_TICK_SIZE":-270,"tecCLAIM":100,"tecPATH_PARTIAL":101,"tecUNFUNDED_ADD":102,"tecUNFUNDED_OFFER":103,"tecUNFUNDED_PAYMENT":104,"tecFAILED_PROCESSING":105,"tecDIR_FULL":121,"tecINSUF_RESERVE_LINE":122,"tecINSUF_RESERVE_OFFER":123,"tecNO_DST":124,"tecNO_DST_INSUF_CALL":125,"tecNO_LINE_INSUF_RESERVE":126,"tecNO_LINE_REDUNDANT":127,"tecPATH_DRY":128,"tecUNFUNDED":129,"tecNO_ALTERNATIVE_KEY":130,"tecNO_REGULAR_KEY":131,"tecOWNERS":132,"tecNO_ISSUER":133,"tecNO_AUTH":134,"tecNO_LINE":135,"tecINSUFF_FEE":136,"tecFROZEN":137,"tecNO_TARGET":138,"tecNO_PERMISSION":139,"tecNO_ENTRY":140,"tecINSUFFICIENT_RESERVE":141,"tecNEED_MASTER_KEY":142,"tecDST_TAG_NEEDED":143,"tecINTERNAL":144,"tecOVERSIZE":145,"tecCRYPTOCONDITION_ERROR":146,"tecINVARIANT_FAILED":147,"tecEXPIRED":148,"tecDUPLICATE":149,"tecKILLED":150},"TRANSACTION_TYPES":{"Invalid":-1,"Payment":0,"EscrowCreate":1,"EscrowFinish":2,"AccountSet":3,"EscrowCancel":4,"SetRegularKey":5,"NickNameSet":6,"OfferCreate":7,"OfferCancel":8,"Contract":9,"TicketCreate":10,"TicketCancel":11,"SignerListSet":12,"PaymentChannelCreate":13,"PaymentChannelFund":14,"PaymentChannelClaim":15,"IssueSet":16,"DepositPreauth":19,"TrustSet":20,"EnableAmendment":100,"SetFee":101}}
 
 /***/ }),
-/* 256 */
+/* 257 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -40080,13 +40097,13 @@ module.exports = {
   Amount: Amount };
 
 /***/ }),
-/* 257 */
+/* 258 */
 /***/ (function(module, exports) {
 
 /* (ignored) */
 
 /***/ }),
-/* 258 */
+/* 259 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -40120,7 +40137,7 @@ module.exports = {
   Blob: Blob };
 
 /***/ }),
-/* 259 */
+/* 260 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -40136,7 +40153,7 @@ module.exports = {
   Hash128: Hash128 };
 
 /***/ }),
-/* 260 */
+/* 261 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -40254,7 +40271,7 @@ module.exports = {
   PathSet: PathSet };
 
 /***/ }),
-/* 261 */
+/* 262 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -40297,7 +40314,7 @@ module.exports = {
   STArray: STArray };
 
 /***/ }),
-/* 262 */
+/* 263 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -40313,7 +40330,7 @@ module.exports = {
   UInt16: UInt16 };
 
 /***/ }),
-/* 263 */
+/* 264 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -40329,7 +40346,7 @@ module.exports = {
   UInt32: UInt32 };
 
 /***/ }),
-/* 264 */
+/* 265 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -40345,7 +40362,7 @@ module.exports = {
   UInt8: UInt8 };
 
 /***/ }),
-/* 265 */
+/* 266 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -40382,7 +40399,7 @@ module.exports = {
   Vector256: Vector256 };
 
 /***/ }),
-/* 266 */
+/* 267 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -40486,14 +40503,14 @@ module.exports = {
   BinaryParser: BinaryParser };
 
 /***/ }),
-/* 267 */
+/* 268 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 var inherits = __webpack_require__(2)
 var HashBase = __webpack_require__(79)
-var Buffer = __webpack_require__(11).Buffer
+var Buffer = __webpack_require__(12).Buffer
 
 var ARRAY16 = new Array(16)
 
@@ -40639,7 +40656,7 @@ module.exports = MD5
 
 
 /***/ }),
-/* 268 */
+/* 269 */
 /***/ (function(module, exports, __webpack_require__) {
 
 exports = module.exports = __webpack_require__(80);
@@ -40648,19 +40665,19 @@ exports.Readable = exports;
 exports.Writable = __webpack_require__(84);
 exports.Duplex = __webpack_require__(27);
 exports.Transform = __webpack_require__(86);
-exports.PassThrough = __webpack_require__(274);
+exports.PassThrough = __webpack_require__(275);
 exports.finished = __webpack_require__(57);
-exports.pipeline = __webpack_require__(275);
+exports.pipeline = __webpack_require__(276);
 
 
 /***/ }),
-/* 269 */
+/* 270 */
 /***/ (function(module, exports) {
 
 /* (ignored) */
 
 /***/ }),
-/* 270 */
+/* 271 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -40681,7 +40698,7 @@ function _createClass(Constructor, protoProps, staticProps) { if (protoProps) _d
 var _require = __webpack_require__(5),
     Buffer = _require.Buffer;
 
-var _require2 = __webpack_require__(271),
+var _require2 = __webpack_require__(272),
     inspect = _require2.inspect;
 
 var custom = inspect && inspect.custom || 'inspect';
@@ -40876,13 +40893,13 @@ function () {
 }();
 
 /***/ }),
-/* 271 */
+/* 272 */
 /***/ (function(module, exports) {
 
 /* (ignored) */
 
 /***/ }),
-/* 272 */
+/* 273 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -41096,7 +41113,7 @@ module.exports = createReadableStreamAsyncIterator;
 /* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(9)))
 
 /***/ }),
-/* 273 */
+/* 274 */
 /***/ (function(module, exports) {
 
 module.exports = function () {
@@ -41105,7 +41122,7 @@ module.exports = function () {
 
 
 /***/ }),
-/* 274 */
+/* 275 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -41150,7 +41167,7 @@ PassThrough.prototype._transform = function (chunk, encoding, cb) {
 };
 
 /***/ }),
-/* 275 */
+/* 276 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -41253,7 +41270,7 @@ function pipeline() {
 module.exports = pipeline;
 
 /***/ }),
-/* 276 */
+/* 277 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -41423,7 +41440,7 @@ module.exports = RIPEMD160
 
 
 /***/ }),
-/* 277 */
+/* 278 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var exports = module.exports = function SHA (algorithm) {
@@ -41435,16 +41452,16 @@ var exports = module.exports = function SHA (algorithm) {
   return new Algorithm()
 }
 
-exports.sha = __webpack_require__(278)
-exports.sha1 = __webpack_require__(279)
-exports.sha224 = __webpack_require__(280)
+exports.sha = __webpack_require__(279)
+exports.sha1 = __webpack_require__(280)
+exports.sha224 = __webpack_require__(281)
 exports.sha256 = __webpack_require__(87)
-exports.sha384 = __webpack_require__(281)
+exports.sha384 = __webpack_require__(282)
 exports.sha512 = __webpack_require__(88)
 
 
 /***/ }),
-/* 278 */
+/* 279 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /*
@@ -41457,7 +41474,7 @@ exports.sha512 = __webpack_require__(88)
 
 var inherits = __webpack_require__(2)
 var Hash = __webpack_require__(28)
-var Buffer = __webpack_require__(11).Buffer
+var Buffer = __webpack_require__(12).Buffer
 
 var K = [
   0x5a827999, 0x6ed9eba1, 0x8f1bbcdc | 0, 0xca62c1d6 | 0
@@ -41544,7 +41561,7 @@ module.exports = Sha
 
 
 /***/ }),
-/* 279 */
+/* 280 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /*
@@ -41558,7 +41575,7 @@ module.exports = Sha
 
 var inherits = __webpack_require__(2)
 var Hash = __webpack_require__(28)
-var Buffer = __webpack_require__(11).Buffer
+var Buffer = __webpack_require__(12).Buffer
 
 var K = [
   0x5a827999, 0x6ed9eba1, 0x8f1bbcdc | 0, 0xca62c1d6 | 0
@@ -41649,7 +41666,7 @@ module.exports = Sha1
 
 
 /***/ }),
-/* 280 */
+/* 281 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /**
@@ -41663,7 +41680,7 @@ module.exports = Sha1
 var inherits = __webpack_require__(2)
 var Sha256 = __webpack_require__(87)
 var Hash = __webpack_require__(28)
-var Buffer = __webpack_require__(11).Buffer
+var Buffer = __webpack_require__(12).Buffer
 
 var W = new Array(64)
 
@@ -41708,13 +41725,13 @@ module.exports = Sha224
 
 
 /***/ }),
-/* 281 */
+/* 282 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var inherits = __webpack_require__(2)
 var SHA512 = __webpack_require__(88)
 var Hash = __webpack_require__(28)
-var Buffer = __webpack_require__(11).Buffer
+var Buffer = __webpack_require__(12).Buffer
 
 var W = new Array(160)
 
@@ -41771,11 +41788,11 @@ module.exports = Sha384
 
 
 /***/ }),
-/* 282 */
+/* 283 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var Buffer = __webpack_require__(11).Buffer
-var Transform = __webpack_require__(283).Transform
+var Buffer = __webpack_require__(12).Buffer
+var Transform = __webpack_require__(284).Transform
 var StringDecoder = __webpack_require__(34).StringDecoder
 var inherits = __webpack_require__(2)
 
@@ -41876,7 +41893,7 @@ module.exports = CipherBase
 
 
 /***/ }),
-/* 283 */
+/* 284 */
 /***/ (function(module, exports, __webpack_require__) {
 
 // Copyright Joyent, Inc. and other Node contributors.
@@ -41907,10 +41924,10 @@ var inherits = __webpack_require__(2);
 
 inherits(Stream, EE);
 Stream.Readable = __webpack_require__(58);
-Stream.Writable = __webpack_require__(290);
-Stream.Duplex = __webpack_require__(291);
-Stream.Transform = __webpack_require__(292);
-Stream.PassThrough = __webpack_require__(293);
+Stream.Writable = __webpack_require__(291);
+Stream.Duplex = __webpack_require__(292);
+Stream.Transform = __webpack_require__(293);
+Stream.PassThrough = __webpack_require__(294);
 
 // Backwards-compat with node 0.4.x
 Stream.Stream = Stream;
@@ -42009,13 +42026,13 @@ Stream.prototype.pipe = function(dest, options) {
 
 
 /***/ }),
-/* 284 */
+/* 285 */
 /***/ (function(module, exports) {
 
 /* (ignored) */
 
 /***/ }),
-/* 285 */
+/* 286 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -42024,7 +42041,7 @@ Stream.prototype.pipe = function(dest, options) {
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 var Buffer = __webpack_require__(59).Buffer;
-var util = __webpack_require__(286);
+var util = __webpack_require__(287);
 
 function copyBuffer(src, target, offset) {
   src.copy(target, offset);
@@ -42100,13 +42117,13 @@ if (util && util.inspect && util.inspect.custom) {
 }
 
 /***/ }),
-/* 286 */
+/* 287 */
 /***/ (function(module, exports) {
 
 /* (ignored) */
 
 /***/ }),
-/* 287 */
+/* 288 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /* WEBPACK VAR INJECTION */(function(global) {var scope = (typeof global !== "undefined" && global) ||
@@ -42162,7 +42179,7 @@ exports._unrefActive = exports.active = function(item) {
 };
 
 // setimmediate attaches itself to the global object
-__webpack_require__(288);
+__webpack_require__(289);
 // On some exotic environments, it's not clear which object `setimmediate` was
 // able to install onto.  Search each possibility in the same order as the
 // `setimmediate` library.
@@ -42173,10 +42190,10 @@ exports.clearImmediate = (typeof self !== "undefined" && self.clearImmediate) ||
                          (typeof global !== "undefined" && global.clearImmediate) ||
                          (this && this.clearImmediate);
 
-/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(12)))
+/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(13)))
 
 /***/ }),
-/* 288 */
+/* 289 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /* WEBPACK VAR INJECTION */(function(global, process) {(function (global, undefined) {
@@ -42366,10 +42383,10 @@ exports.clearImmediate = (typeof self !== "undefined" && self.clearImmediate) ||
     attachTo.clearImmediate = clearImmediate;
 }(typeof self === "undefined" ? typeof global === "undefined" ? this : global : self));
 
-/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(12), __webpack_require__(9)))
+/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(13), __webpack_require__(9)))
 
 /***/ }),
-/* 289 */
+/* 290 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -42422,35 +42439,35 @@ PassThrough.prototype._transform = function (chunk, encoding, cb) {
 };
 
 /***/ }),
-/* 290 */
+/* 291 */
 /***/ (function(module, exports, __webpack_require__) {
 
 module.exports = __webpack_require__(60);
 
 
 /***/ }),
-/* 291 */
+/* 292 */
 /***/ (function(module, exports, __webpack_require__) {
 
 module.exports = __webpack_require__(21);
 
 
 /***/ }),
-/* 292 */
+/* 293 */
 /***/ (function(module, exports, __webpack_require__) {
 
 module.exports = __webpack_require__(58).Transform
 
 
 /***/ }),
-/* 293 */
+/* 294 */
 /***/ (function(module, exports, __webpack_require__) {
 
 module.exports = __webpack_require__(58).PassThrough
 
 
 /***/ }),
-/* 294 */
+/* 295 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -42527,7 +42544,7 @@ module.exports = {
   ledgerHash: ledgerHash };
 
 /***/ }),
-/* 295 */
+/* 296 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -42553,7 +42570,7 @@ module.exports = {
   } };
 
 /***/ }),
-/* 296 */
+/* 297 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -42624,7 +42641,7 @@ module.exports = {
   sign: sign };
 
 /***/ }),
-/* 297 */
+/* 298 */
 /***/ (function(module, exports) {
 
 
@@ -42655,32 +42672,29 @@ module.exports = {
 
 
 /***/ }),
-/* 298 */
+/* 299 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
 var _ = __webpack_require__(0);
-var utils = __webpack_require__(14);
+var utils = __webpack_require__(11);
 var common_1 = __webpack_require__(1);
-var account_trustline_1 = __webpack_require__(299);
+var account_trustline_1 = __webpack_require__(300);
+// interface GetAccountLinesResponse {
+//   marker?: any,
+//   results: Trustline[]
+// }
 function currencyFilter(currency, trustline) {
     return currency === null || trustline.specification.currency === currency;
 }
 function formatResponse(options, data) {
-    var response = { results: data.lines.map(account_trustline_1.default)
-            .filter(_.partial(currencyFilter, options.currency || null)) };
-    // if(data.marker){
-    //     response.marker = data.marker;
-    // }
-    // if(data.NickName){
-    //     response.nickName = hexToStringWide(hexToStringWide(data.NickName));
-    // }
-    // if(data.call_info){
-    //     response.call_info = data.call_info;
-    // }
-    return response;
+    return {
+        marker: data.marker,
+        results: data.lines.map(account_trustline_1.default)
+            .filter(_.partial(currencyFilter, options.currency || null))
+    };
 }
 function getAccountLines(connection, address, ledgerVersion, options, marker, limit) {
     var request = {
@@ -42699,14 +42713,14 @@ function getTrustlines(address, options) {
     common_1.validate.getTrustlines({ address: address, options: options });
     return this.getLedgerVersion().then(function (ledgerVersion) {
         var getter = _.partial(getAccountLines, _this.connection, address, options.ledgerVersion || ledgerVersion, options);
-        return utils.getRecursive(getter, options.limit, options.currency);
+        return utils.getRecursive(getter, options.limit);
     });
 }
 exports.default = getTrustlines;
 
 
 /***/ }),
-/* 299 */
+/* 300 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -42746,13 +42760,13 @@ exports.default = parseAccountTrustline;
 
 
 /***/ }),
-/* 300 */
+/* 301 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-var utils = __webpack_require__(14);
+var utils = __webpack_require__(11);
 var common_1 = __webpack_require__(1);
 function getTrustlineBalanceAmount(trustline) {
     return {
@@ -42800,14 +42814,14 @@ exports.default = getBalances;
 
 
 /***/ }),
-/* 301 */
+/* 302 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
 var _ = __webpack_require__(0);
-var utils = __webpack_require__(14);
+var utils = __webpack_require__(11);
 var common_1 = __webpack_require__(1);
 function formatBalanceSheet(balanceSheet) {
     var result = {};
@@ -42851,7 +42865,7 @@ exports.default = getBalanceSheet;
 
 
 /***/ }),
-/* 302 */
+/* 303 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -42859,9 +42873,9 @@ exports.default = getBalanceSheet;
 Object.defineProperty(exports, "__esModule", { value: true });
 var _ = __webpack_require__(0);
 var bignumber_js_1 = __webpack_require__(6);
-var utils_1 = __webpack_require__(14);
+var utils_1 = __webpack_require__(11);
 var common_1 = __webpack_require__(1);
-var pathfind_1 = __webpack_require__(303);
+var pathfind_1 = __webpack_require__(304);
 var NotFoundError = common_1.errors.NotFoundError;
 var ValidationError = common_1.errors.ValidationError;
 function addParams(request, result) {
@@ -42972,7 +42986,7 @@ exports.default = getPaths;
 
 
 /***/ }),
-/* 303 */
+/* 304 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -43020,16 +43034,16 @@ exports.default = parsePathfind;
 
 
 /***/ }),
-/* 304 */
+/* 305 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
 var _ = __webpack_require__(0);
-var utils = __webpack_require__(14);
+var utils = __webpack_require__(11);
 var common_1 = __webpack_require__(1);
-var account_order_1 = __webpack_require__(305);
+var account_order_1 = __webpack_require__(306);
 function requestAccountOffers(connection, address, ledgerVersion, marker, limit) {
     return connection.request({
         command: 'account_offers',
@@ -43049,14 +43063,14 @@ function getOrders(address, options) {
     return utils.ensureLedgerVersion.call(this, options).then(function (_options) {
         var getter = _.partial(requestAccountOffers, _this.connection, address, _options.ledgerVersion);
         // return utils.getRecursive(getter, _options.limit).then(orders.results => _.sortBy(orders, order => order.properties.sequence))
-        return utils.getRecursive(getter, _options.limit, _options.marker);
+        return utils.getRecursive(getter, _options.limit);
     });
 }
 exports.default = getOrders;
 
 
 /***/ }),
-/* 305 */
+/* 306 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -43100,15 +43114,15 @@ exports.default = parseAccountOrder;
 
 
 /***/ }),
-/* 306 */
+/* 307 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
 var _ = __webpack_require__(0);
-var utils = __webpack_require__(14);
-var orderbook_order_1 = __webpack_require__(307);
+var utils = __webpack_require__(11);
+var orderbook_order_1 = __webpack_require__(308);
 var common_1 = __webpack_require__(1);
 // account is to specify a "perspective", which affects which unfunded offers
 // are returned
@@ -43177,7 +43191,7 @@ exports.default = getOrderbook;
 
 
 /***/ }),
-/* 307 */
+/* 308 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -43223,7 +43237,7 @@ exports.default = parseOrderbookOrder;
 
 
 /***/ }),
-/* 308 */
+/* 309 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -43263,7 +43277,7 @@ exports.default = getSettings;
 
 
 /***/ }),
-/* 309 */
+/* 310 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -43280,8 +43294,6 @@ function formatAccountInfo(response) {
         previousAffectingTransactionID: data.PreviousTxnID,
         previousAffectingTransactionLedgerVersion: data.PreviousTxnLgrSeq
     };
-    // if(data.NickName)
-    //   obj.nickName = hexToStringWide(hexToStringWide(data.NickName));
     return common_1.removeUndefined(obj);
 }
 function getAccountInfo(address, options) {
@@ -43298,36 +43310,18 @@ exports.default = getAccountInfo;
 
 
 /***/ }),
-/* 310 */
+/* 311 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
+var utils_1 = __webpack_require__(11);
 function getAccountByName(name, options) {
     if (options === void 0) { options = {}; }
-    function stringToHexWide(s) {
-        var result = '';
-        for (var i = 0; i < s.length; i++) {
-            var b = s.charCodeAt(i);
-            if (0 <= b && b < 16) {
-                result += '000' + b.toString(16);
-            }
-            if (16 <= b && b < 255) {
-                result += '00' + b.toString(16);
-            }
-            if (255 <= b && b < 4095) {
-                result += '0' + b.toString(16);
-            }
-            if (4095 <= b && b < 65535) {
-                result += b.toString(16);
-            }
-        }
-        return result;
-    }
     var request = {
         command: 'nick_search',
-        NickName: stringToHexWide(stringToHexWide(name)).toUpperCase(),
+        NickName: utils_1.stringToHexWide(name).toUpperCase(),
         ledger_index: options.ledgerVersion || 'validated'
     };
     return this.connection.request(request);
@@ -43336,26 +43330,29 @@ exports.default = getAccountByName;
 
 
 /***/ }),
-/* 311 */
+/* 312 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-var utils = __webpack_require__(14);
+var utils = __webpack_require__(11);
 var _ = __webpack_require__(0);
-var account_issue_1 = __webpack_require__(312);
+var common_1 = __webpack_require__(1);
+var account_issue_1 = __webpack_require__(313);
+// interface GetAccountIssuesResponse {
+//   marker?: any,
+//   results: IssueItem[]
+// }
+function currencyFilter(invoice, issue) {
+    return invoice === null || issue.specification.invoice === invoice;
+}
 function formatResponse(options, data) {
-    var response = { results: data.lines.map(account_issue_1.default) };
-    // if(data.marker){
-    //     response.marker = data.marker;
-    // }
-    // if(data.NickName){
-    //     response.nickName = utils.hexToStringWide(data.NickName);
-    // }
-    // if(data.call_info){
-    //     response.call_info = data.call_info;
-    // }
+    var response = { results: data.lines.map(account_issue_1.default)
+            .filter(_.partial(currencyFilter, options.invoice || null)) };
+    if (data.marker) {
+        response['marker'] = data.marker;
+    }
     return response;
 }
 function getAccountIssuesInternal(connection, address, ledgerVersion, options, marker, limit) {
@@ -43369,19 +43366,19 @@ function getAccountIssuesInternal(connection, address, ledgerVersion, options, m
     return connection.request(request).then(_.partial(formatResponse, options));
 }
 function getAccountIssues(address, options) {
-    // TODO validate
     var _this = this;
     if (options === void 0) { options = {}; }
+    common_1.validate.getIssues({ address: address, options: options });
     return this.getLedgerVersion().then(function (ledgerVersion) {
         var getter = _.partial(getAccountIssuesInternal, _this.connection, address, options.ledgerVersion || ledgerVersion, options);
-        return utils.getRecursive(getter, options.limit, options.marker);
+        return utils.getRecursive(getter, options.limit);
     });
 }
 exports.default = getAccountIssues;
 
 
 /***/ }),
-/* 312 */
+/* 313 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -43413,7 +43410,7 @@ exports.default = parseAccountIssue;
 
 
 /***/ }),
-/* 313 */
+/* 314 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -43432,7 +43429,7 @@ exports.default = getAccountInvoices;
 
 
 /***/ }),
-/* 314 */
+/* 315 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -43539,7 +43536,7 @@ exports.default = preparePayment;
 
 
 /***/ }),
-/* 315 */
+/* 316 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -43597,7 +43594,7 @@ exports.default = prepareTrustline;
 
 
 /***/ }),
-/* 316 */
+/* 317 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -43652,7 +43649,7 @@ exports.default = prepareOrder;
 
 
 /***/ }),
-/* 317 */
+/* 318 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -43682,7 +43679,7 @@ exports.default = prepareOrderCancellation;
 
 
 /***/ }),
-/* 318 */
+/* 319 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -43811,7 +43808,7 @@ exports.default = prepareSettings;
 /* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(5).Buffer))
 
 /***/ }),
-/* 319 */
+/* 320 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -43923,7 +43920,7 @@ exports.default = prepareIssueSet;
 /* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(5).Buffer))
 
 /***/ }),
-/* 320 */
+/* 321 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -43971,7 +43968,7 @@ exports.default = sign;
 
 
 /***/ }),
-/* 321 */
+/* 322 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -44015,7 +44012,7 @@ exports.default = combine;
 /* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(5).Buffer))
 
 /***/ }),
-/* 322 */
+/* 323 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -44063,7 +44060,7 @@ exports.default = submit;
 
 
 /***/ }),
-/* 323 */
+/* 324 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -44091,7 +44088,7 @@ exports.generateAddressAPI = generateAddressAPI;
 
 
 /***/ }),
-/* 324 */
+/* 325 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -44113,7 +44110,7 @@ exports.fromSecret = fromSecret;
 
 
 /***/ }),
-/* 325 */
+/* 326 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -44186,14 +44183,14 @@ exports.default = computeLedgerHash;
 
 
 /***/ }),
-/* 326 */
+/* 327 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
 var common_1 = __webpack_require__(1);
-var ledger_1 = __webpack_require__(327);
+var ledger_1 = __webpack_require__(328);
 function getLedger(options) {
     if (options === void 0) { options = {}; }
     common_1.validate.getLedger({ options: options });
@@ -44213,7 +44210,7 @@ exports.default = getLedger;
 
 
 /***/ }),
-/* 327 */
+/* 328 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -44273,7 +44270,7 @@ exports.default = parseLedger;
 
 
 /***/ }),
-/* 328 */
+/* 329 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";

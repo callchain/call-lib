@@ -1,32 +1,6 @@
 import {txFlags, removeUndefined} from '../../common'
+import {IssueInfo, AccountIssue} from '../issues-types'
 const flags = txFlags.IssueSet
-
-type IssueItem = {
-    currency: string,
-    issuer: string, 
-    value: string,
-}
-
-type IssueInfo = {
-    Fans: string,
-    Flags: string,
-    Freeze: IssueItem,
-    Issued: IssueItem,
-    Total: IssueItem,
-    TransferRate: string
-}
-
-type IssueSpecification = {}
-
-type IssueState = {
-    fans: string,
-    issued: string,
-    freeze?: string
-}
-
-type AccountIssue = {
-    specification: IssueSpecification, state: IssueState
-}
 
 function parseFlag(flagsValue, value) {
     return ((flagsValue & value) !== 0)
