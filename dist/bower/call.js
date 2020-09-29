@@ -9617,7 +9617,7 @@ var ValidationError = exports.ValidationError = function ValidationError (messag
       this.schema = schema;
     }
   }
-  if (instance) {
+  if (instance !== undefined) {
     this.instance = instance;
   }
   this.name = name;
@@ -9687,8 +9687,9 @@ var SchemaError = exports.SchemaError = function SchemaError (msg, schema) {
   Error.captureStackTrace(this, SchemaError);
 };
 SchemaError.prototype = Object.create(Error.prototype,
-  { constructor: {value: SchemaError, enumerable: false}
-  , name: {value: 'SchemaError', enumerable: false}
+  {
+    constructor: {value: SchemaError, enumerable: false},
+    name: {value: 'SchemaError', enumerable: false},
   });
 
 var SchemaContext = exports.SchemaContext = function SchemaContext (schema, options, propertyPath, base, schemas) {
@@ -9711,7 +9712,7 @@ SchemaContext.prototype.makeChild = function makeChild(schema, propertyName){
     ctx.schemas[base] = schema;
   }
   return ctx;
-}
+};
 
 var FORMAT_REGEXPS = exports.FORMAT_REGEXPS = {
   'date-time': /^\d{4}-(?:0[0-9]{1}|1[0-2]{1})-(3[01]|0[1-9]|[12][0-9])[tT ](2[0-4]|[01][0-9]):([0-5][0-9]):(60|[0-5][0-9])(\.\d+)?([zZ]|[+-]([0-5][0-9]):(60|[0-5][0-9]))$/,
@@ -9744,7 +9745,7 @@ var FORMAT_REGEXPS = exports.FORMAT_REGEXPS = {
     return result;
   },
   'style': /\s*(.+?):\s*([^;]+);?/,
-  'phone': /^\+(?:[0-9] ?){6,14}[0-9]$/
+  'phone': /^\+(?:[0-9] ?){6,14}[0-9]$/,
 };
 
 FORMAT_REGEXPS.regexp = FORMAT_REGEXPS.regex;
@@ -9813,10 +9814,10 @@ exports.deepCompareStrict = function deepCompareStrict (a, b) {
 
 function deepMerger (target, dst, e, i) {
   if (typeof e === 'object') {
-    dst[i] = deepMerge(target[i], e)
+    dst[i] = deepMerge(target[i], e);
   } else {
     if (target.indexOf(e) === -1) {
-      dst.push(e)
+      dst.push(e);
     }
   }
 }
@@ -9833,7 +9834,7 @@ function copyistWithDeepMerge (target, src, dst, key) {
     if (!target[key]) {
       dst[key] = src[key];
     } else {
-      dst[key] = deepMerge(target[key], src[key])
+      dst[key] = deepMerge(target[key], src[key]);
     }
   }
 }
@@ -9854,7 +9855,7 @@ function deepMerge (target, src) {
   }
 
   return dst;
-};
+}
 
 module.exports.deepMerge = deepMerge;
 
@@ -9885,9 +9886,9 @@ function pathEncoder (v) {
  * @return {String}
  */
 exports.encodePath = function encodePointer(a){
-	// ~ must be encoded explicitly because hacks
-	// the slash is encoded by encodeURIComponent
-	return a.map(pathEncoder).join('');
+  // ~ must be encoded explicitly because hacks
+  // the slash is encoded by encodeURIComponent
+  return a.map(pathEncoder).join('');
 };
 
 
@@ -16790,6 +16791,8 @@ module.exports = function(module) {
 /* 47 */
 /***/ (function(module, exports, __webpack_require__) {
 
+"use strict";
+
 
 var urilib = __webpack_require__(29);
 var helpers = __webpack_require__(22);
@@ -16860,10 +16863,9 @@ module.exports.scan = function scan(base, schema){
 
   var found = {};
   var ref = {};
-  var schemaUri = base;
   scanSchema(base, schema);
   return new SchemaScanResult(found, ref);
-}
+};
 
 
 /***/ }),
@@ -16958,7 +16960,6 @@ exports.iso8601ToCallTime = iso8601ToCallTime;
  * This is the web browser implementation of `debug()`.
  */
 
-exports.log = log;
 exports.formatArgs = formatArgs;
 exports.save = save;
 exports.load = load;
@@ -17124,18 +17125,14 @@ function formatArgs(args) {
 }
 
 /**
- * Invokes `console.log()` when available.
- * No-op when `console.log` is not a "function".
+ * Invokes `console.debug()` when available.
+ * No-op when `console.debug` is not a "function".
+ * If `console.debug` is not available, falls back
+ * to `console.log`.
  *
  * @api public
  */
-function log(...args) {
-	// This hackery is required for IE8/9, where
-	// the `console.log` function doesn't have 'apply'
-	return typeof console === 'object' &&
-		console.log &&
-		console.log(...args);
-}
+exports.log = console.debug || console.log || (() => {});
 
 /**
  * Save `namespaces`.
@@ -30215,7 +30212,7 @@ function shouldResolve(schema) {
 Validator.prototype.validateSchema = function validateSchema (instance, schema, options, ctx) {
   var result = new ValidatorResult(instance, schema, options, ctx);
 
-    // Support for the true/false schemas
+  // Support for the true/false schemas
   if(typeof schema==='boolean') {
     if(schema===true){
       // `true` is always valid
@@ -30243,8 +30240,8 @@ Validator.prototype.validateSchema = function validateSchema (instance, schema, 
   }
 
   // If passed a string argument, load that schema URI
-  var switchSchema;
-  if (switchSchema = shouldResolve(schema)) {
+  var switchSchema = shouldResolve(schema);
+  if (switchSchema) {
     var resolved = this.resolve(schema, switchSchema, ctx);
     var subctx = new SchemaContext(resolved.subschema, options, ctx.propertyPath, resolved.switchSchema, ctx.schemas);
     return this.validateSchema(instance, resolved.subschema, options, subctx);
@@ -30283,7 +30280,7 @@ Validator.prototype.validateSchema = function validateSchema (instance, schema, 
 */
 Validator.prototype.schemaTraverser = function schemaTraverser (schemaobj, s) {
   schemaobj.schema = helpers.deepMerge(schemaobj.schema, this.superResolve(s, schemaobj.ctx));
-}
+};
 
 /**
 * @private
@@ -30292,12 +30289,12 @@ Validator.prototype.schemaTraverser = function schemaTraverser (schemaobj, s) {
 * @returns Object schema or resolved schema
 */
 Validator.prototype.superResolve = function superResolve (schema, ctx) {
-  var ref;
-  if(ref = shouldResolve(schema)) {
+  var ref = shouldResolve(schema);
+  if(ref) {
     return this.resolve(schema, ref, ctx).subschema;
   }
   return schema;
-}
+};
 
 /**
 * @private
@@ -31168,7 +31165,7 @@ attribute.ignoreProperties = {
   // special-handled properties
   '$schema': true,
   '$ref': true,
-  'extends': true
+  'extends': true,
 };
 
 /**
@@ -31237,7 +31234,7 @@ validators.anyOf = function validateAnyOf (instance, schema, options, ctx) {
   if (!schema.anyOf.some(
     testSchemaNoThrow.bind(
       this, instance, options, ctx, function(res){inner.importErrors(res);}
-      ))) {
+    ))) {
     var list = schema.anyOf.map(function (v, i) {
       return (v.id && ('<' + v.id + '>')) || (v.title && JSON.stringify(v.title)) || (v['$ref'] && ('<' + v['$ref'] + '>')) || '[subschema '+i+']';
     });
@@ -31307,7 +31304,7 @@ validators.oneOf = function validateOneOf (instance, schema, options, ctx) {
   var count = schema.oneOf.filter(
     testSchemaNoThrow.bind(
       this, instance, options, ctx, function(res) {inner.importErrors(res);}
-      ) ).length;
+    ) ).length;
   var list = schema.oneOf.map(function (v, i) {
     return (v.id && ('<' + v.id + '>')) || (v.title && JSON.stringify(v.title)) || (v['$ref'] && ('<' + v['$ref'] + '>')) || '[subschema '+i+']';
   });
@@ -31396,7 +31393,7 @@ validators.patternProperties = function validatePatternProperties (instance, sch
   for (var property in instance) {
     var test = true;
     for (var pattern in patternProperties) {
-      var expr = new RegExp(pattern);
+      var expr = new RegExp(pattern, 'u');
       if (!expr.test(property)) {
         continue;
       }
@@ -31454,7 +31451,7 @@ validators.minProperties = function validateMinProperties (instance, schema, opt
       name: 'minProperties',
       argument: schema.minProperties,
       message: "does not meet minimum property length of " + schema.minProperties,
-    })
+    });
   }
   return result;
 };
@@ -31590,7 +31587,7 @@ var validateMultipleOfOrDivisbleBy = function validateMultipleOfOrDivisbleBy (in
     result.addError({
       name: validationType,
       argument:  validationArgument,
-      message: errorMessage + JSON.stringify(validationArgument)
+      message: errorMessage + JSON.stringify(validationArgument),
     });
   }
 
@@ -31604,7 +31601,7 @@ var validateMultipleOfOrDivisbleBy = function validateMultipleOfOrDivisbleBy (in
  * @return {String|null}
  */
 validators.multipleOf = function validateMultipleOf (instance, schema, options, ctx) {
- return validateMultipleOfOrDivisbleBy.call(this, instance, schema, options, ctx, "multipleOf", "is not a multiple of (divisible by) ");
+  return validateMultipleOfOrDivisbleBy.call(this, instance, schema, options, ctx, "multipleOf", "is not a multiple of (divisible by) ");
 };
 
 /**
@@ -31629,7 +31626,7 @@ validators.required = function validateRequired (instance, schema, options, ctx)
     // A boolean form is implemented for reverse-compatability with schemas written against older drafts
     result.addError({
       name: 'required',
-      message: "is required"
+      message: "is required",
     });
   } else if (this.types.object(instance) && Array.isArray(schema.required)) {
     schema.required.forEach(function(n){
@@ -31654,7 +31651,8 @@ validators.required = function validateRequired (instance, schema, options, ctx)
 validators.pattern = function validatePattern (instance, schema, options, ctx) {
   if (!this.types.string(instance)) return;
   var result = new ValidatorResult(instance, schema, options, ctx);
-  if (!instance.match(schema.pattern)) {
+  var regexp = new RegExp(schema.pattern, 'u');
+  if (!instance.match(regexp)) {
     result.addError({
       name: 'pattern',
       argument: schema.pattern,
@@ -31780,32 +31778,6 @@ validators.maxItems = function validateMaxItems (instance, schema, options, ctx)
 };
 
 /**
- * Validates that every item in an instance array is unique, when instance is an array
- * @param instance
- * @param schema
- * @param options
- * @param ctx
- * @return {String|null|ValidatorResult}
- */
-validators.uniqueItems = function validateUniqueItems (instance, schema, options, ctx) {
-  if (!this.types.array(instance)) return;
-  var result = new ValidatorResult(instance, schema, options, ctx);
-  function testArrays (v, i, a) {
-    for (var j = i + 1; j < a.length; j++) if (helpers.deepCompareStrict(v, a[j])) {
-      return false;
-    }
-    return true;
-  }
-  if (!instance.every(testArrays)) {
-    result.addError({
-      name: 'uniqueItems',
-      message: "contains duplicate item",
-    });
-  }
-  return result;
-};
-
-/**
  * Deep compares arrays for duplicates
  * @param v
  * @param i
@@ -31829,6 +31801,7 @@ function testArrays (v, i, a) {
  * @return {String|null}
  */
 validators.uniqueItems = function validateUniqueItems (instance, schema, options, ctx) {
+  if (schema.uniqueItems!==true) return;
   if (!this.types.array(instance)) return;
   var result = new ValidatorResult(instance, schema, options, ctx);
   if (!instance.every(testArrays)) {
@@ -38562,13 +38535,11 @@ function setup(env) {
 		debug.namespace = namespace;
 		debug.enabled = createDebug.enabled(namespace);
 		debug.useColors = createDebug.useColors();
-		debug.color = selectColor(namespace);
+		debug.color = createDebug.selectColor(namespace);
 		debug.destroy = destroy;
 		debug.extend = extend;
-		// Debug.formatArgs = formatArgs;
-		// debug.rawLog = rawLog;
 
-		// env-specific initialization logic for debug instances
+		// Env-specific initialization logic for debug instances
 		if (typeof createDebug.init === 'function') {
 			createDebug.init(debug);
 		}
@@ -39360,7 +39331,7 @@ function parseOrderChange(node) {
   var orderChange = convertOrderChange({
     taker_pays: parseChangeAmount(node, 'TakerPays'),
     taker_gets: parseChangeAmount(node, 'TakerGets'),
-    sell: (node.finalFields.Flags & lsfSell) !== 0,
+    sell: ((node.finalFields.Flags || node.newFields.Flags) & lsfSell) !== 0,
     sequence: node.finalFields.Sequence || node.newFields.Sequence,
     status: parseOrderStatus(node),
     quality: getQuality(node),
